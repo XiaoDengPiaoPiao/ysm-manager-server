@@ -30,12 +30,12 @@ function createModelController() {
   const baseController = createController();
 
   /**
-   * 检查模型是否已存在接口
+   * 检查模型是否已存在，如果存在将该模型添加一个上传者接口
    * @param {Object} req 请求对象
    * @param {Object} res 响应对象
    * @returns {Object} 响应结果
    */
-  const customHash = async (req, res) => {
+  const hashVerification = async (req, res) => {
     try {
       const { hash } = req.body;
 
@@ -121,7 +121,7 @@ function createModelController() {
   };
 
   return {
-    customHash,
+    hashVerification,
     custom
   };
 }

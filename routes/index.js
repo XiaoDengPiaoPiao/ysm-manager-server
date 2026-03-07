@@ -41,7 +41,7 @@ router.use('/admin', adminRouter);
 
 // YSM模型路由组
 const ysmRouter = express.Router();
-ysmRouter.post('/customhash', authMiddleware, modelController.customHash);
+ysmRouter.post('/hashVerification', authMiddleware, modelController.hashVerification);
 ysmRouter.post('/custom', authMiddleware, uploadMiddleware.single('file'), modelController.custom);
 router.use('/ysm', ysmRouter);
 
