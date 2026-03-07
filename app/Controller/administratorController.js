@@ -1,24 +1,10 @@
-/**
- * 管理员控制器
- * 处理管理员相关的请求
- */
 import createController from './baseController.js';
 import bcrypt from 'bcrypt';
 
-/**
- * 创建管理员控制器实例
- * @returns {Object} 管理员控制器对象
- */
 function createAdministratorController() {
   const baseController = createController();
 
-  /**
-   * 重置用户密码接口
-   * @param {Object} req 请求对象
-   * @param {Object} res 响应对象
-   * @returns {Object} 响应结果
-   */
-  const resetPassword = async (req, res) => {
+  async function resetPassword(req, res) {
     try {
       const { username } = req.body;
       
@@ -55,7 +41,7 @@ function createAdministratorController() {
       console.error('重置密码错误:', err);
       return baseController.error(res, '重置密码失败，请稍后再试', 500);
     }
-  };
+  }
 
   return {
     resetPassword

@@ -1,16 +1,9 @@
-/**
- * 鉴权中间件
- * 使用token进行身份验证
- */
 import prisma from '../../src/utils/prisma.js';
+import { error } from '../../src/utils/common.js';
 import createController from '../Controller/baseController.js';
 
 const baseController = createController();
 
-/**
- * 鉴权中间件函数
- * 验证请求头中的token是否有效
- */
 const authMiddleware = async (req, res, next) => {
   try {
     const authorizationHeader = req.headers.authorization;
@@ -19,9 +12,12 @@ const authMiddleware = async (req, res, next) => {
       return baseController.error(res, '未提供认证token', 401);
     }
 
-    const token = authorizationHeader.startsWith('Bearer ') 
-      ? authorizationHeader.slice(7) 
-      : authorizationHeader;
+    let token;
+    if (authorizationHeader.startsWith('Bearer ')) {
+      token = authorizationHeader.slice(7);
+    } else {
+      token = authorizationHeader;
+    }
 
     if (!token) {
       return baseController.error(res, '无效的认证token', 401);

@@ -1,26 +1,11 @@
-/**
- * 基础控制器
- * 提供通用的响应方法和RCON客户端
- */
 import dotenv from 'dotenv';
 dotenv.config();
 import prisma from '../../src/utils/prisma.js';
 import { createConnection } from 'net';
 import { BufferReader, BufferWriter, decode, encode } from '../../src/utils/rcon.js';
-import crypto from 'crypto';
-import fs from 'fs';
-import path from 'path';
+import * as common from '../../src/utils/common.js';
 
-/**
- * RCON客户端类
- * 用于与游戏服务器进行RCON通信
- */
 class RCONClient {
-  /**
-   * 构造函数
-   * @param {string} host 服务器主机地址
-   * @param {number} port 服务器端口
-   */
   constructor(host = process.env.RCON_HOST || "127.0.0.1", port = parseInt(process.env.RCON_PORT) || 25575) {
     this.host = host;
     this.port = port;
@@ -32,19 +17,13 @@ class RCONClient {
     this.responseTimeout = null;
   }
 
-  /**
-   * 连接到RCON服务器
-   * @returns {Promise} 连接结果
-   */
   async connect() {
     return new Promise((resolve, reject) => {
-      // 创建socket对象
       this.socket = createConnection({ 
         host: this.host, 
         port: this.port 
       });
 
-      // 监听响应
       this.socket.on("data", (buffer) => {
         try {
           const msg = decode(buffer);
@@ -54,13 +33,11 @@ class RCONClient {
         }
       });
       
-      // 监听错误
       this.socket.on("error", (error) => {
         console.error('RCON socket error:', error);
         reject(error);
       });
       
-      // 监听关闭
       this.socket.on("close", () => {
         console.log('RCON socket closed');
         this.socket = null;
@@ -68,14 +45,12 @@ class RCONClient {
 
       this.socket.on("connect", async () => {
         console.log(`RCON connected to ${this.host}:${this.port}`);
-        // 发送登录消息
         try {
           await this.sendMessage({ 
-            type: 3, // Login
+            type: 3,
             payload: this.password 
           });
           
-          // 等待登录响应
           setTimeout(() => {
             resolve();
           }, 200);
@@ -92,23 +67,13 @@ class RCONClient {
     });
   }
 
-  /**
-   * 发送RCON命令
-   * @param {string} command 命令内容
-   * @returns {Promise} 发送结果
-   */
   async sendCommand(command) {
     return this.sendMessage({ 
-      type: 2, // ExecCommand
+      type: 2,
       payload: command 
     });
   }
 
-  /**
-   * 发送RCON消息
-   * @param {Object} msg 消息对象
-   * @returns {Promise} 发送结果
-   */
   async sendMessage(msg) {
     const msgBuf = encode({ 
       ...msg, 
@@ -117,55 +82,49 @@ class RCONClient {
     
     return new Promise((resolve, reject) => {
       this.socket.write(msgBuf, (err) => {
-        if (err) reject(err);
-        else resolve();
+        if (err) {
+          reject(err);
+        } else {
+          resolve();
+        }
       });
     });
   }
 
-  /**
-   * 处理RCON响应
-   * @param {Object} msg 响应消息
-   */
   handleResponse(msg) {
     switch (msg.type) {
-      case 2: // LoginSuccess
-        console.log(msg.id === -1 ? "Login failed!" : "Login success!");
+      case 2:
+        if (msg.id === -1) {
+          console.log("Login failed!");
+        } else {
+          console.log("Login success!");
+        }
         break;
-      case 0: // MultiPacket (命令响应)
+      case 0:
         console.log("Server response:", msg.payload);
-        // 保存响应内容
         this.lastResponse = msg.payload;
         this.lastResponseTime = Date.now();
         break;
     }
   }
 
-  /**
-   * 等待响应，使用超时机制
-   * @param {number} timeout 超时时间(ms)
-   * @returns {Promise<boolean>} 是否收到响应
-   */
   async waitForResponse(timeout = process.env.RCON_DISCONNECT_DELAY || 5000) {
     const startTime = Date.now();
-    const checkInterval = 100; // 每100ms检查一次
+    const checkInterval = 100;
     
     return new Promise((resolve) => {
       const checkResponse = () => {
         const elapsed = Date.now() - startTime;
         
-        // 如果已经超过超时时间，强制结束
         if (elapsed >= timeout) {
           console.log(`Response timeout after ${timeout}ms`);
           resolve(false);
           return;
         }
         
-        // 如果收到了响应，检查是否还有新的数据
         if (this.lastResponseTime) {
           const timeSinceLastResponse = Date.now() - this.lastResponseTime;
           
-          // 如果距离上次响应已经超过500ms，认为响应完成
           if (timeSinceLastResponse >= 500) {
             console.log(`Response completed after ${elapsed}ms`);
             resolve(true);
@@ -173,7 +132,6 @@ class RCONClient {
           }
         }
         
-        // 继续等待
         setTimeout(checkResponse, checkInterval);
       };
       
@@ -181,9 +139,6 @@ class RCONClient {
     });
   }
 
-  /**
-   * 断开RCON连接
-   */
   disconnect() {
     if (this.socket) {
       this.socket.end();
@@ -191,171 +146,44 @@ class RCONClient {
   }
 }
 
-/**
- * 基础控制器工厂函数
- * @returns {Object} 基础控制器实例
- */
 function createController() {
-
-  /**
-   * 生成随机数
-   * @param {number} length 随机数长度
-   * @returns {string} 随机数
-   */
-  const generateRandomString = (length) => {
-    return crypto.randomBytes(Math.ceil(length / 2))
-      .toString('hex')
-      .slice(0, length);
-  };
-
-  /**
-   * 生成 token
-   * @param {string} username 用户名
-   * @returns {string} MD5 加密后的 token
-   */
-  const generateToken = (username) => {
-    const randomString = generateRandomString(16);
-    const timestamp = Date.now().toString();
-    const rawToken = `${username}:${randomString}:${timestamp}`;
-    return crypto.createHash('md5').update(rawToken).digest('hex');
-  };
-
-  /**
-   * 生成随机密码
-   * 包含大写字母、小写字母和数字，共8位
-   * @returns {string} 随机密码
-   */
-  const generateRandomPassword = () => {
-    const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    const lowercase = 'abcdefghijklmnopqrstuvwxyz';
-    const numbers = '0123456789';
-    
-    const allChars = uppercase + lowercase + numbers;
-    let password = '';
-    
-    password += uppercase.charAt(Math.floor(Math.random() * uppercase.length));
-    password += lowercase.charAt(Math.floor(Math.random() * lowercase.length));
-    password += numbers.charAt(Math.floor(Math.random() * numbers.length));
-    
-    for (let i = 0; i < 5; i++) {
-      password += allChars.charAt(Math.floor(Math.random() * allChars.length));
-    }
-    
-    return password.split('').sort(() => 0.5 - Math.random()).join('');
-  };
-
-  /**
-   * 解析YSM文件内容，提取metadata
-   * @param {Buffer} fileBuffer 文件内容
-   * @returns {Object} 解析后的metadata
-   */
-  const parseYsmMetadata = (fileBuffer) => {
-    const content = fileBuffer.toString('utf8');
-    
-    const metadata = {
-      name: '',
-      free: false,
-      hash: ''
-    };
-
-    const nameMatch = content.match(/<name>\s*(.+?)\s*(?:\n|$)/);
-    if (nameMatch) {
-      metadata.name = nameMatch[1].trim();
-    }
-
-    const freeMatch = content.match(/<free>\s*(true|false)\s*/i);
-    if (freeMatch) {
-      metadata.free = freeMatch[1].toLowerCase() === 'true';
-    }
-
-    metadata.hash = calculateFileHash(fileBuffer);
-
-    return metadata;
-  };
-
-  /**
-   * 计算文件的MD5哈希
-   * @param {Buffer} fileBuffer 文件内容
-   * @returns {string} MD5哈希值
-   */
-  const calculateFileHash = (fileBuffer) => {
-    return crypto.createHash('md5').update(fileBuffer).digest('hex');
-  };
-
-  /**
-   * 保存YSM文件到指定目录
-   * @param {Buffer} fileBuffer 文件内容
-   * @param {string} fileName 文件名
-   * @returns {Promise<string>} 保存的文件路径
-   */
-  const saveYsmFile = async (fileBuffer, fileName) => {
-    const baseDir = process.env.YSM_MODEL_DIR || './ysm_models';
-    const customDir = path.join(baseDir, 'custom');
-
-    if (!fs.existsSync(customDir)) {
-      fs.mkdirSync(customDir, { recursive: true });
-    }
-
-    const filePath = path.join(customDir, fileName);
-    fs.writeFileSync(filePath, fileBuffer);
-
-    return filePath;
-  };
-
-  /**
-   * 根据hash查找模型
-   * @param {string} hash 模型hash
-   * @param {boolean} includeUploaders 是否包含上传者信息
-   * @returns {Promise<Object|null>} 找到的模型或null
-   */
-  const findModelByHash = async (hash, includeUploaders = false) => {
-    const include = includeUploaders ? {
-      uploaders: {
-        include: {
-          user: true
+  async function findModelByHash(hash, includeUploaders = false) {
+    let include;
+    if (includeUploaders) {
+      include = {
+        uploaders: {
+          include: {
+            user: true
+          }
         }
-      }
-    } : undefined;
+      };
+    } else {
+      include = undefined;
+    }
 
     return await prisma.Model.findFirst({
       where: { hash },
       include
     });
-  };
+  }
 
-  /**
-   * 检查用户是否是模型的上传者
-   * @param {Object} model 模型对象
-   * @param {number} userId 用户ID
-   * @returns {boolean} 是否是上传者
-   */
-  const isUserUploader = (model, userId) => {
-    if (!model || !model.uploaders) return false;
+  function isUserUploader(model, userId) {
+    if (!model || !model.uploaders) {
+      return false;
+    }
     return model.uploaders.some(u => u.userId === userId);
-  };
+  }
 
-  /**
-   * 添加用户为模型的上传者
-   * @param {number} modelId 模型ID
-   * @param {number} userId 用户ID
-   * @returns {Promise<Object>} 创建的上传者记录
-   */
-  const addUploaderToModel = async (modelId, userId) => {
+  async function addUploaderToModel(modelId, userId) {
     return await prisma.ModelUploader.create({
       data: {
         modelId,
         userId
       }
     });
-  };
+  }
 
-  /**
-   * 创建模型并添加上传者
-   * @param {Object} modelData 模型数据
-   * @param {number} userId 用户ID
-   * @returns {Promise<Object>} 创建的模型
-   */
-  const createModelWithUploader = async (modelData, userId) => {
+  async function createModelWithUploader(modelData, userId) {
     const newModel = await prisma.Model.create({
       data: modelData
     });
@@ -368,63 +196,22 @@ function createController() {
     });
 
     return newModel;
-  };
+  }
 
-  /**
-   * 成功响应方法
-   * @param {Object} res 响应对象
-   * @param {*} data 响应数据
-   * @param {string} message 响应消息
-   * @returns {Object} 响应结果
-   */
-  const success = (res, data, message = '操作成功') => {
-    return res.json({
-      code: 200,
-      message,
-      data,
-      timestamp: new Date().toISOString()
-    });
-  };
-
-  /**
-   * 错误响应方法
-   * @param {Object} res 响应对象
-   * @param {string} message 错误消息
-   * @param {number} code 错误状态码
-   * @returns {Object} 响应结果
-   */
-  const error = (res, message = '操作失败', code = 400) => {
-    return res.status(code).json({
-      code,
-      message,
-      timestamp: new Date().toISOString()
-    });
-  };
-
-  /**
-   * 执行RCON命令
-   * @param {string} command RCON命令
-   * @returns {Promise<Object>} 响应对象
-   */
-  const executeRCONCommand = async (command) => {
+  async function executeRCONCommand(command) {
     console.log(`Executing RCON command: ${command}`);
-    // 执行命令时创建RCONClient实例
     const rconClient = new RCONClient();
     
     try {
-      // 连接到RCON服务器
       console.log('Connecting to RCON server...');
       await rconClient.connect();
       console.log('Connected, sending command...');
-      // 发送命令
       await rconClient.sendCommand(command);
       
-      // 使用超时机制等待响应
       const timeout = parseInt(process.env.RCON_TIMEOUT) || 5000;
       console.log(`Waiting for response with timeout ${timeout}ms...`);
       const hasResponse = await rconClient.waitForResponse(timeout);
       
-      // 获取响应内容
       const response = rconClient.lastResponse;
       
       if (!hasResponse) {
@@ -433,7 +220,6 @@ function createController() {
         console.log(`Response received: ${response || '无响应内容'}`);
       }
       
-      // 断开连接
       console.log('Disconnecting from RCON server...');
       rconClient.disconnect();
       console.log('Disconnected');
@@ -444,23 +230,22 @@ function createController() {
       };
     } catch (error) {
       console.error('RCON error:', error);
-      // 确保断开连接
       rconClient.disconnect();
       return null;
     }
-  };
+  }
 
   return {
-    success,
-    error,
+    success: common.success,
+    error: common.error,
     executeRCONCommand,
     prisma,
-    generateRandomString,
-    generateToken,
-    generateRandomPassword,
-    parseYsmMetadata,
-    calculateFileHash,
-    saveYsmFile,
+    generateRandomString: common.generateRandomString,
+    generateToken: common.generateToken,
+    generateRandomPassword: common.generateRandomPassword,
+    parseYsmMetadata: common.parseYsmMetadata,
+    calculateFileHash: common.calculateFileHash,
+    saveYsmFile: common.saveYsmFile,
     findModelByHash,
     isUserUploader,
     addUploaderToModel,

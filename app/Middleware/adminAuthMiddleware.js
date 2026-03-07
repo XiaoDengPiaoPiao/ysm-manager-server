@@ -1,15 +1,8 @@
-/**
- * 管理员鉴权中间件
- * 使用管理员密钥进行身份验证
- */
 import createController from '../Controller/baseController.js';
+import { error } from '../../src/utils/common.js';
 
 const baseController = createController();
 
-/**
- * 管理员鉴权中间件函数
- * 验证请求体或请求头中的管理员密钥是否有效
- */
 const adminAuthMiddleware = (req, res, next) => {
   try {
     const adminSecretKey = req.body.adminSecretKey || req.headers['x-admin-secret-key'];

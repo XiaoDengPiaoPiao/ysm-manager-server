@@ -19,6 +19,8 @@ import authMiddleware from '../app/Middleware/authMiddleware.js';
 import adminAuthMiddleware from '../app/Middleware/adminAuthMiddleware.js';
 // 导入文件上传中间件
 import uploadMiddleware from '../app/Middleware/fileUploadMiddleware.js';
+// 导入上传限制中间件
+import { checkCustomUploadLimit, checkAuthUploadLimit } from '../app/Middleware/uploadLimitMiddleware.js';
 
 // 测试路由组
 const testRouter = express.Router();
@@ -42,7 +44,8 @@ router.use('/admin', adminRouter);
 // YSM模型路由组
 const ysmRouter = express.Router();
 ysmRouter.post('/hashVerification', authMiddleware, modelController.hashVerification);
-ysmRouter.post('/custom', authMiddleware, uploadMiddleware.single('file'), modelController.custom);
+ysmRouter.post('/custom', authMiddleware, checkCustomUploadLimit, uploadMiddleware.single('file'), modelController.custom);
+ysmRouter.post('/auth', authMiddleware, checkAuthUploadLimit, uploadMiddleware.single('file'), modelController.auth);
 router.use('/ysm', ysmRouter);
 
 export default router;

@@ -1,24 +1,10 @@
-/**
- * 用户控制器
- * 处理用户相关的请求
- */
 import createController from './baseController.js';
 import bcrypt from 'bcrypt';
 
-/**
- * 创建用户控制器实例
- * @returns {Object} 用户控制器对象
- */
 function createUserController() {
   const baseController = createController();
 
-  /**
-   * 用户注册接口
-   * @param {Object} req 请求对象
-   * @param {Object} res 响应对象
-   * @returns {Object} 响应结果
-   */
-  const register = async (req, res) => {
+  async function register(req, res) {
     try {
       const { name, password, gameName } = req.body;
       
@@ -77,15 +63,9 @@ function createUserController() {
       console.error('注册错误:', err);
       return baseController.error(res, '注册失败，请稍后再试', 500);
     }
-  };
+  }
 
-  /**
-   * 用户登录接口
-   * @param {Object} req 请求对象
-   * @param {Object} res 响应对象
-   * @returns {Object} 响应结果
-   */
-  const login = async (req, res) => {
+  async function login(req, res) {
     try {
       const { name, password } = req.body;
       
@@ -132,7 +112,7 @@ function createUserController() {
       console.error('登录错误:', err);
       return baseController.error(res, '登录失败，请稍后再试', 500);
     }
-  };
+  }
 
   return {
     register,
