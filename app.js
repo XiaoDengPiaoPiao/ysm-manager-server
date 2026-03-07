@@ -14,9 +14,15 @@ import routes from './routes/index.js';
 // 使用路由
 app.use('/api', routes);
 
-// 启动服务器
-app.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
+// 导入初始化检查
+import checkNullnameUser from './src/utils/initCheck.js';
+
+// 执行初始化检查
+checkNullnameUser().then(() => {
+  // 启动服务器
+  app.listen(port, () => {
+    console.log(`Server is running on port ${port}`);
+  });
 });
 
 export default app;
