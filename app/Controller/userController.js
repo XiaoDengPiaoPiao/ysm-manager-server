@@ -133,9 +133,15 @@ function createUserController() {
       
       const token = generateToken(name);
       
+      const tokenExpireHours = parseInt(process.env.TOKEN_EXPIRE_HOURS) || 1;
+      const tokenExpiresAt = new Date(Date.now() + tokenExpireHours * 60 * 60 * 1000);
+      
       await baseController.prisma.User.update({
         where: { id: user.id },
-        data: { token }
+        data: { 
+          token,
+          tokenExpiresAt
+        }
       });
       
       return baseController.success(res, {

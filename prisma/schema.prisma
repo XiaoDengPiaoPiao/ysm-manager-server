@@ -19,6 +19,7 @@ model User {
   password String  @default("")
   gameName String  @default("")
   token String?  @default("")
+  tokenExpiresAt DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   

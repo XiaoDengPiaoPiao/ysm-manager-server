@@ -65,10 +65,24 @@ function createTestController() {
     }
   };
 
+  /**
+   * 需要鉴权的测试接口
+   * @param {Object} req 请求对象
+   * @param {Object} res 响应对象
+   * @returns {Object} 响应结果
+   */
+  const authTest = (req, res) => {
+    return baseController.success(res, {
+      message: '鉴权成功！',
+      user: req.user
+    }, '鉴权测试通过');
+  };
+
   return {
     test,
     rconTest,
-    dbtest
+    dbtest,
+    authTest
   };
 }
 

@@ -11,9 +11,13 @@ import userController from '../app/Controller/userController.js';
 
 // 导入安全中间件
 import securityMiddleware from '../app/Middleware/securityMiddleware.js';
+// 导入鉴权中间件
+import authMiddleware from '../app/Middleware/authMiddleware.js';
 
 // 测试路由
 router.get('/test', testController.test);
+// 鉴权测试路由
+router.get('/authTest', authMiddleware, testController.authTest);
 
 // RCON测试路由
 router.get('/rconTest', testController.rconTest);
