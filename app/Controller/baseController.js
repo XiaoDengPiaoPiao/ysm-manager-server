@@ -268,10 +268,7 @@ function createController() {
       metadata.free = freeMatch[1].toLowerCase() === 'true';
     }
 
-    const hashMatch = content.match(/<hash>\s*([a-f0-9]+)\s*/i);
-    if (hashMatch) {
-      metadata.hash = hashMatch[1].toLowerCase();
-    }
+    metadata.hash = calculateFileHash(fileBuffer);
 
     return metadata;
   };
