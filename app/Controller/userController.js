@@ -114,9 +114,120 @@ function createUserController() {
     }
   }
 
+  async function logout(req, res) {
+    try {
+      await baseController.prisma.User.update({
+        where: { id: req.user.id },
+        data: {
+          token: null,
+          tokenExpiresAt: null
+        }
+      });
+      
+      return baseController.success(res, null, '登出成功');
+    } catch (err) {
+      console.error('登出错误:', err);
+      return baseController.error(res, '登出失败，请稍后再试', 500);
+    }
+  }
+
+  async function getAuthModels(req, res) {
+    try {
+      const models = await baseController.prisma.ModelUploader.findMany({
+        where: {
+          userId: req.user.id,
+          model: {
+            currentType: 'auth'
+          }
+        },
+        include: {
+          model: true
+        }
+      });
+      
+      const result = models.map(item => ({
+        id: item.model.id,
+        allowAuth: item.model.allowAuth,
+        currentType: item.model.currentType,
+        hash: item.model.hash,
+        fileName: item.model.fileName,
+        createdAt: item.model.createdAt,
+        uploadedAt: item.createdAt
+      }));
+      
+      return baseController.success(res, result, '获取私人模型列表成功');
+    } catch (err) {
+      console.error('获取私人模型列表错误:', err);
+      return baseController.error(res, '获取私人模型列表失败，请稍后再试', 500);
+    }
+  }
+
+  async function getCustomModels(req, res) {
+    try {
+      const models = await baseController.prisma.ModelUploader.findMany({
+        where: {
+          userId: req.user.id,
+          model: {
+            currentType: 'custom'
+          }
+        },
+        include: {
+          model: true
+        }
+      });
+      
+      const result = models.map(item => ({
+        id: item.model.id,
+        allowAuth: item.model.allowAuth,
+        currentType: item.model.currentType,
+        hash: item.model.hash,
+        fileName: item.model.fileName,
+        createdAt: item.model.createdAt,
+        uploadedAt: item.createdAt
+      }));
+      
+      return baseController.success(res, result, '获取公共模型列表成功');
+    } catch (err) {
+      console.error('获取公共模型列表错误:', err);
+      return baseController.error(res, '获取公共模型列表失败，请稍后再试', 500);
+    }
+  }
+
+  async function getAllModels(req, res) {
+    try {
+      const models = await baseController.prisma.ModelUploader.findMany({
+        where: {
+          userId: req.user.id
+        },
+        include: {
+          model: true
+        }
+      });
+      
+      const result = models.map(item => ({
+        id: item.model.id,
+        allowAuth: item.model.allowAuth,
+        currentType: item.model.currentType,
+        hash: item.model.hash,
+        fileName: item.model.fileName,
+        createdAt: item.model.createdAt,
+        uploadedAt: item.createdAt
+      }));
+      
+      return baseController.success(res, result, '获取所有模型列表成功');
+    } catch (err) {
+      console.error('获取所有模型列表错误:', err);
+      return baseController.error(res, '获取所有模型列表失败，请稍后再试', 500);
+    }
+  }
+
   return {
     register,
-    login
+    login,
+    logout,
+    getAuthModels,
+    getCustomModels,
+    getAllModels
   };
 }
 

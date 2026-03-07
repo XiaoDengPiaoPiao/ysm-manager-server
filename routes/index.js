@@ -34,6 +34,10 @@ router.use('/test', testRouter);
 const userRouter = express.Router();
 userRouter.post('/register', securityMiddleware, userController.register);
 userRouter.post('/login', securityMiddleware, userController.login);
+userRouter.post('/logout', authMiddleware, userController.logout);
+userRouter.get('/models/auth', authMiddleware, userController.getAuthModels);
+userRouter.get('/models/custom', authMiddleware, userController.getCustomModels);
+userRouter.get('/models/all', authMiddleware, userController.getAllModels);
 router.use('/user', userRouter);
 
 // 管理员路由组
