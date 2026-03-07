@@ -9,6 +9,7 @@ const router = express.Router();
 import testController from '../app/Controller/testController.js';
 import userController from '../app/Controller/userController.js';
 import administratorController from '../app/Controller/administratorController.js';
+import modelController from '../app/Controller/modelController.js';
 
 // 导入安全中间件
 import securityMiddleware from '../app/Middleware/securityMiddleware.js';
@@ -16,6 +17,8 @@ import securityMiddleware from '../app/Middleware/securityMiddleware.js';
 import authMiddleware from '../app/Middleware/authMiddleware.js';
 // 导入管理员鉴权中间件
 import adminAuthMiddleware from '../app/Middleware/adminAuthMiddleware.js';
+// 导入文件上传中间件
+import uploadMiddleware from '../app/Middleware/fileUploadMiddleware.js';
 
 // 测试路由组
 const testRouter = express.Router();
@@ -35,5 +38,11 @@ router.use('/user', userRouter);
 const adminRouter = express.Router();
 adminRouter.post('/resetPassword', securityMiddleware, adminAuthMiddleware, administratorController.resetPassword);
 router.use('/admin', adminRouter);
+
+// YSM模型路由组
+const ysmRouter = express.Router();
+ysmRouter.post('/customhash', authMiddleware, modelController.customHash);
+ysmRouter.post('/custom', authMiddleware, uploadMiddleware.single('file'), modelController.custom);
+router.use('/ysm', ysmRouter);
 
 export default router;

@@ -8,6 +8,8 @@ import prisma from '../../src/utils/prisma.js';
 import { createConnection } from 'net';
 import { BufferReader, BufferWriter, decode, encode } from '../../src/utils/rcon.js';
 import crypto from 'crypto';
+import fs from 'fs';
+import path from 'path';
 
 /**
  * RCON客户端类
@@ -243,6 +245,135 @@ function createController() {
   };
 
   /**
+   * 解析YSM文件内容，提取metadata
+   * @param {Buffer} fileBuffer 文件内容
+   * @returns {Object} 解析后的metadata
+   */
+  const parseYsmMetadata = (fileBuffer) => {
+    const content = fileBuffer.toString('utf8');
+    
+    const metadata = {
+      name: '',
+      free: false,
+      hash: ''
+    };
+
+    const nameMatch = content.match(/<name>\s*(.+?)\s*(?:\n|$)/);
+    if (nameMatch) {
+      metadata.name = nameMatch[1].trim();
+    }
+
+    const freeMatch = content.match(/<free>\s*(true|false)\s*/i);
+    if (freeMatch) {
+      metadata.free = freeMatch[1].toLowerCase() === 'true';
+    }
+
+    const hashMatch = content.match(/<hash>\s*([a-f0-9]+)\s*/i);
+    if (hashMatch) {
+      metadata.hash = hashMatch[1].toLowerCase();
+    }
+
+    return metadata;
+  };
+
+  /**
+   * 计算文件的MD5哈希
+   * @param {Buffer} fileBuffer 文件内容
+   * @returns {string} MD5哈希值
+   */
+  const calculateFileHash = (fileBuffer) => {
+    return crypto.createHash('md5').update(fileBuffer).digest('hex');
+  };
+
+  /**
+   * 保存YSM文件到指定目录
+   * @param {Buffer} fileBuffer 文件内容
+   * @param {string} fileName 文件名
+   * @returns {Promise<string>} 保存的文件路径
+   */
+  const saveYsmFile = async (fileBuffer, fileName) => {
+    const baseDir = process.env.YSM_MODEL_DIR || './ysm_models';
+    const customDir = path.join(baseDir, 'custom');
+
+    if (!fs.existsSync(customDir)) {
+      fs.mkdirSync(customDir, { recursive: true });
+    }
+
+    const filePath = path.join(customDir, fileName);
+    fs.writeFileSync(filePath, fileBuffer);
+
+    return filePath;
+  };
+
+  /**
+   * 根据hash查找模型
+   * @param {string} hash 模型hash
+   * @param {boolean} includeUploaders 是否包含上传者信息
+   * @returns {Promise<Object|null>} 找到的模型或null
+   */
+  const findModelByHash = async (hash, includeUploaders = false) => {
+    const include = includeUploaders ? {
+      uploaders: {
+        include: {
+          user: true
+        }
+      }
+    } : undefined;
+
+    return await prisma.Model.findFirst({
+      where: { hash },
+      include
+    });
+  };
+
+  /**
+   * 检查用户是否是模型的上传者
+   * @param {Object} model 模型对象
+   * @param {number} userId 用户ID
+   * @returns {boolean} 是否是上传者
+   */
+  const isUserUploader = (model, userId) => {
+    if (!model || !model.uploaders) return false;
+    return model.uploaders.some(u => u.userId === userId);
+  };
+
+  /**
+   * 添加用户为模型的上传者
+   * @param {number} modelId 模型ID
+   * @param {number} userId 用户ID
+   * @returns {Promise<Object>} 创建的上传者记录
+   */
+  const addUploaderToModel = async (modelId, userId) => {
+    return await prisma.ModelUploader.create({
+      data: {
+        modelId,
+        userId
+      }
+    });
+  };
+
+  /**
+   * 创建模型并添加上传者
+   * @param {Object} modelData 模型数据
+   * @param {number} userId 用户ID
+   * @returns {Promise<Object>} 创建的模型
+   */
+  const createModelWithUploader = async (modelData, userId) => {
+    const newModel = await prisma.Model.create({
+      data: modelData
+    });
+
+    await prisma.ModelUploader.create({
+      data: {
+        modelId: newModel.id,
+        userId
+      }
+    });
+
+    return newModel;
+  };
+
+  /**
    * 成功响应方法
    * @param {Object} res 响应对象
    * @param {*} data 响应数据
@@ -329,7 +460,14 @@ function createController() {
     prisma,
     generateRandomString,
     generateToken,
-    generateRandomPassword
+    generateRandomPassword,
+    parseYsmMetadata,
+    calculateFileHash,
+    saveYsmFile,
+    findModelByHash,
+    isUserUploader,
+    addUploaderToModel,
+    createModelWithUploader
   };
 }
 
