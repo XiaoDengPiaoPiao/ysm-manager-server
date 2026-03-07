@@ -1,0 +1,52 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+model test{
+  id Int @id @default(autoincrement())
+  name String
+}
+model User {
+  id       Int     @id @default(autoincrement())
+  name     String  @default("")
+  password String  @default("")
+  gameName String  @default("")
+  token String?  @default("")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // 关联关系
+  models Model[]
+}
+
+model Model {
+  id           Int     @id @default(autoincrement())
+  allowAuth    Boolean @default(false)
+  currentType  String  @default("") // auth 或 custom
+  uploaderId   Int
+  hash         String  @default("")
+  fileName     String  @default("")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  // 关联关系
+  uploader     User        @relation(fields: [uploaderId], references: [id], onDelete: Cascade)
+  authorizations ModelAuthorization[]
+}
+
+model ModelAuthorization {
+  id        Int     @id @default(autoincrement())
+  gameName  String  @default("")
+  modelId   Int
+  createdAt DateTime @default(now())
+  
+  // 关联关系
+  model     Model   @relation(fields: [modelId], references: [id], onDelete: Cascade)
+}

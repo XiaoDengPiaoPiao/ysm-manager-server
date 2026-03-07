@@ -1,0 +1,31 @@
+-- CreateTable
+CREATE TABLE "User" (
+    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "name" TEXT NOT NULL DEFAULT '',
+    "password" TEXT NOT NULL DEFAULT '',
+    "gameName" TEXT NOT NULL DEFAULT '',
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL
+);
+
+-- CreateTable
+CREATE TABLE "Model" (
+    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "allowAuth" BOOLEAN NOT NULL DEFAULT false,
+    "currentType" TEXT NOT NULL DEFAULT '',
+    "uploaderId" INTEGER NOT NULL,
+    "hash" TEXT NOT NULL DEFAULT '',
+    "fileName" TEXT NOT NULL DEFAULT '',
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" DATETIME NOT NULL,
+    CONSTRAINT "Model_uploaderId_fkey" FOREIGN KEY ("uploaderId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- CreateTable
+CREATE TABLE "ModelAuthorization" (
+    "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    "gameName" TEXT NOT NULL DEFAULT '',
+    "modelId" INTEGER NOT NULL,
+    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "ModelAuthorization_modelId_fkey" FOREIGN KEY ("modelId") REFERENCES "Model" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
