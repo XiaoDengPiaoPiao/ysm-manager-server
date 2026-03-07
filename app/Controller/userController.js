@@ -4,30 +4,6 @@
  */
 import createController from './baseController.js';
 import bcrypt from 'bcrypt';
-import crypto from 'crypto';
-
-/**
- * 生成随机数
- * @param {number} length 随机数长度
- * @returns {string} 随机数
- */
-function generateRandomString(length) {
-  return crypto.randomBytes(Math.ceil(length / 2))
-    .toString('hex')
-    .slice(0, length);
-}
-
-/**
- * 生成 token
- * @param {string} username 用户名
- * @returns {string} MD5 加密后的 token
- */
-function generateToken(username) {
-  const randomString = generateRandomString(16);
-  const timestamp = Date.now().toString();
-  const rawToken = `${username}:${randomString}:${timestamp}`;
-  return crypto.createHash('md5').update(rawToken).digest('hex');
-}
 
 /**
  * 创建用户控制器实例
@@ -131,7 +107,7 @@ function createUserController() {
         return baseController.error(res, '用户名或密码错误', 400);
       }
       
-      const token = generateToken(name);
+      const token = baseController.generateToken(name);
       
       const tokenExpireHours = parseInt(process.env.TOKEN_EXPIRE_HOURS) || 1;
       const tokenExpiresAt = new Date(Date.now() + tokenExpireHours * 60 * 60 * 1000);

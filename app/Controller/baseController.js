@@ -7,6 +7,7 @@ dotenv.config();
 import prisma from '../../src/utils/prisma.js';
 import { createConnection } from 'net';
 import { BufferReader, BufferWriter, decode, encode } from '../../src/utils/rcon.js';
+import crypto from 'crypto';
 
 /**
  * RCON客户端类
@@ -195,6 +196,53 @@ class RCONClient {
 function createController() {
 
   /**
+   * 生成随机数
+   * @param {number} length 随机数长度
+   * @returns {string} 随机数
+   */
+  const generateRandomString = (length) => {
+    return crypto.randomBytes(Math.ceil(length / 2))
+      .toString('hex')
+      .slice(0, length);
+  };
+
+  /**
+   * 生成 token
+   * @param {string} username 用户名
+   * @returns {string} MD5 加密后的 token
+   */
+  const generateToken = (username) => {
+    const randomString = generateRandomString(16);
+    const timestamp = Date.now().toString();
+    const rawToken = `${username}:${randomString}:${timestamp}`;
+    return crypto.createHash('md5').update(rawToken).digest('hex');
+  };
+
+  /**
+   * 生成随机密码
+   * 包含大写字母、小写字母和数字，共8位
+   * @returns {string} 随机密码
+   */
+  const generateRandomPassword = () => {
+    const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const lowercase = 'abcdefghijklmnopqrstuvwxyz';
+    const numbers = '0123456789';
+    
+    const allChars = uppercase + lowercase + numbers;
+    let password = '';
+    
+    password += uppercase.charAt(Math.floor(Math.random() * uppercase.length));
+    password += lowercase.charAt(Math.floor(Math.random() * lowercase.length));
+    password += numbers.charAt(Math.floor(Math.random() * numbers.length));
+    
+    for (let i = 0; i < 5; i++) {
+      password += allChars.charAt(Math.floor(Math.random() * allChars.length));
+    }
+    
+    return password.split('').sort(() => 0.5 - Math.random()).join('');
+  };
+
+  /**
    * 成功响应方法
    * @param {Object} res 响应对象
    * @param {*} data 响应数据
@@ -278,7 +326,10 @@ function createController() {
     success,
     error,
     executeRCONCommand,
-    prisma
+    prisma,
+    generateRandomString,
+    generateToken,
+    generateRandomPassword
   };
 }
 

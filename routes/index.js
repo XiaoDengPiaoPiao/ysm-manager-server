@@ -8,25 +8,32 @@ const router = express.Router();
 // 导入控制器
 import testController from '../app/Controller/testController.js';
 import userController from '../app/Controller/userController.js';
+import administratorController from '../app/Controller/administratorController.js';
 
 // 导入安全中间件
 import securityMiddleware from '../app/Middleware/securityMiddleware.js';
 // 导入鉴权中间件
 import authMiddleware from '../app/Middleware/authMiddleware.js';
+// 导入管理员鉴权中间件
+import adminAuthMiddleware from '../app/Middleware/adminAuthMiddleware.js';
 
-// 测试路由
-router.get('/test', testController.test);
-// 鉴权测试路由
-router.get('/authTest', authMiddleware, testController.authTest);
+// 测试路由组
+const testRouter = express.Router();
+testRouter.get('/', testController.test);
+testRouter.get('/auth', authMiddleware, testController.authTest);
+testRouter.get('/rcon', testController.rconTest);
+testRouter.get('/db', testController.dbtest);
+router.use('/test', testRouter);
 
-// RCON测试路由
-router.get('/rconTest', testController.rconTest);
+// 用户路由组
+const userRouter = express.Router();
+userRouter.post('/register', securityMiddleware, userController.register);
+userRouter.post('/login', securityMiddleware, userController.login);
+router.use('/user', userRouter);
 
-// 数据库测试路由
-router.get('/dbtest', testController.dbtest);
-
-// 用户路由
-router.post('/user/register', securityMiddleware, userController.register);
-router.post('/user/login', securityMiddleware, userController.login);
+// 管理员路由组
+const adminRouter = express.Router();
+adminRouter.post('/resetPassword', securityMiddleware, adminAuthMiddleware, administratorController.resetPassword);
+router.use('/admin', adminRouter);
 
 export default router;
