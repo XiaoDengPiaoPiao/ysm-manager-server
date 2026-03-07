@@ -1,5 +1,7 @@
 import prisma from '../../src/utils/prisma.js';
-import { success, error } from '../../src/utils/common.js';
+import createController from '../Controller/baseController.js';
+
+const baseController = createController();
 
 const createUploadLimitMiddleware = (modelType) => {
   return async (req, res, next) => {
@@ -16,11 +18,7 @@ const createUploadLimitMiddleware = (modelType) => {
         limit = parseInt(process.env.AUTH_UPLOAD_LIMIT) || 10;
         typeName = '私有';
       } else {
-        return res.status(400).json({
-          code: 400,
-          message: '无效的模型类型',
-          timestamp: new Date().toISOString()
-        });
+        return baseController.error(res, '无效的模型类型', 400);
       }
 
       const modelCount = await prisma.modelUploader.count({
@@ -33,21 +31,13 @@ const createUploadLimitMiddleware = (modelType) => {
       });
 
       if (modelCount >= limit) {
-        return res.status(403).json({
-          code: 403,
-          message: `您已达到${typeName}模型上传上限（最多 ${limit} 个）`,
-          timestamp: new Date().toISOString()
-        });
+        return baseController.error(res, `您已达到${typeName}模型上传上限（最多 ${limit} 个）`, 403);
       }
 
       next();
     } catch (error) {
       console.error('检查上传限制错误:', error);
-      return res.status(500).json({
-        code: 500,
-        message: '检查上传限制失败，请稍后再试',
-        timestamp: new Date().toISOString()
-      });
+      return baseController.error(res, '检查上传限制失败，请稍后再试', 500);
     }
   };
 };

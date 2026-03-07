@@ -1,5 +1,4 @@
 import createController from '../Controller/baseController.js';
-import { error } from '../../src/utils/common.js';
 
 const baseController = createController();
 

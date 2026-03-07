@@ -35,6 +35,7 @@ const userRouter = express.Router();
 userRouter.post('/register', securityMiddleware, userController.register);
 userRouter.post('/login', securityMiddleware, userController.login);
 userRouter.post('/logout', authMiddleware, userController.logout);
+userRouter.post('/updateGameName', authMiddleware, userController.updateGameName);
 userRouter.get('/models/auth', authMiddleware, userController.getAuthModels);
 userRouter.get('/models/custom', authMiddleware, userController.getCustomModels);
 userRouter.get('/models/all', authMiddleware, userController.getAllModels);
@@ -50,6 +51,9 @@ const ysmRouter = express.Router();
 ysmRouter.post('/hashVerification', authMiddleware, modelController.hashVerification);
 ysmRouter.post('/custom', authMiddleware, checkCustomUploadLimit, uploadMiddleware.single('file'), modelController.custom);
 ysmRouter.post('/auth', authMiddleware, checkAuthUploadLimit, uploadMiddleware.single('file'), modelController.auth);
+ysmRouter.post('/auth/:id', authMiddleware, modelController.authorizeModel);
+ysmRouter.post('/deauth/:id', authMiddleware, modelController.deauthorizeModel);
+ysmRouter.delete('/auth/:id', authMiddleware, modelController.deleteAuthModel);
 router.use('/ysm', ysmRouter);
 
 export default router;

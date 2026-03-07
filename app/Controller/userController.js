@@ -221,13 +221,51 @@ function createUserController() {
     }
   }
 
+  async function updateGameName(req, res) {
+    try {
+      const { gameName } = req.body;
+      
+      if (!gameName) {
+        return baseController.error(res, '缺少游戏名称', 400);
+      }
+      
+      if (gameName.length < 3 || gameName.length > 30) {
+        return baseController.error(res, '游戏名称长度应在3-30之间', 400);
+      }
+      
+      const existingUser = await baseController.prisma.User.findFirst({
+        where: { gameName }
+      });
+      
+      if (existingUser) {
+        return baseController.error(res, '游戏名称已被使用', 400);
+      }
+      
+      const updatedUser = await baseController.prisma.User.update({
+        where: { id: req.user.id },
+        data: { gameName },
+        select: {
+          id: true,
+          name: true,
+          gameName: true
+        }
+      });
+      
+      return baseController.success(res, updatedUser, '游戏名称更新成功');
+    } catch (err) {
+      console.error('更新游戏名称错误:', err);
+      return baseController.error(res, '更新游戏名称失败，请稍后再试', 500);
+    }
+  }
+
   return {
     register,
     login,
     logout,
     getAuthModels,
     getCustomModels,
-    getAllModels
+    getAllModels,
+    updateGameName
   };
 }
 

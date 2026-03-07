@@ -1,5 +1,4 @@
 import prisma from '../../src/utils/prisma.js';
-import { error } from '../../src/utils/common.js';
 import createController from '../Controller/baseController.js';
 
 const baseController = createController();
@@ -37,17 +36,19 @@ const authMiddleware = async (req, res, next) => {
       return baseController.error(res, 'token无效或已过期', 401);
     }
 
-    if (user.tokenExpiresAt && new Date() > new Date(user.tokenExpiresAt)) {
-      await prisma.User.update({
-        where: { id: user.id },
-        data: { 
-          token: null,
-          tokenExpiresAt: null
-        }
-      });
-      return baseController.error(res, 'token已过期', 401);
+    if (user.tokenExpiresAt) {
+      if (new Date() > new Date(user.tokenExpiresAt)) {
+        await prisma.User.update({
+          where: { id: user.id },
+          data: { 
+            token: null,
+            tokenExpiresAt: null
+          }
+        });
+        return baseController.error(res, 'token已过期', 401);
+      }
     }
-    
+
     let tokenExp = user.tokenExpiresAt;
     if (!tokenExp) {
       return baseController.error(res, 'token有效期异常', 401);

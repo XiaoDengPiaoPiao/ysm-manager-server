@@ -1,5 +1,7 @@
 import createController from './baseController.js';
 import { fixFilenameEncoding } from '../../src/utils/common.js';
+import fs from 'fs';
+import path from 'path';
 
 function createModelController() {
   const baseController = createController();
@@ -171,13 +173,19 @@ function createModelController() {
 
           await baseController.addUploaderToModel(existingModel.id, req.user.id);
 
-          const filePath = await baseController.saveYsmFile(fileBuffer, fileName, 'custom');
+          const baseDir = process.env.YSM_MODEL_DIR || './ysm_models';
+          const authFilePath = path.join(baseDir, 'auth', existingModel.fileName);
+          const customFilePath = path.join(baseDir, 'custom', existingModel.fileName);
+          
+          if (fs.existsSync(authFilePath)) {
+            fs.renameSync(authFilePath, customFilePath);
+          }
 
           return baseController.success(res, {
             modelId: existingModel.id,
             hash: metadata.hash,
-            fileName: fileName,
-            filePath: filePath
+            fileName: existingModel.fileName,
+            filePath: customFilePath
           }, '模型已转为公共模型，您已被添加为上传者');
         }
         return baseController.error(res, '模型出现重复或服务器处理错误', 540);
@@ -259,10 +267,193 @@ function createModelController() {
     }
   }
 
+  async function authorizeModel(req, res) {
+    try {
+      const modelId = parseInt(req.params.id);
+
+      if (!modelId) {
+        return baseController.error(res, '请提供有效的模型ID', 400);
+      }
+
+      const model = await baseController.prisma.Model.findFirst({
+        where: { id: modelId }
+      });
+
+      if (!model) {
+        return baseController.error(res, '模型不存在', 404);
+      }
+
+      if (model.currentType !== 'auth') {
+        return baseController.error(res, '只有私人模型才能授权', 400);
+      }
+
+      const isUploader = await baseController.prisma.ModelUploader.findFirst({
+        where: {
+          modelId: modelId,
+          userId: req.user.id
+        }
+      });
+
+      if (!isUploader) {
+        return baseController.error(res, '您没有权限授权此模型', 403);
+      }
+
+      const command = `ysm auth ${req.user.gameName} add "${model.fileName}"`;
+      const result = await baseController.executeRCONCommand(command);
+
+      if (!result || !result.success) {
+        return baseController.error(res, 'RCON命令执行失败', 500);
+      }
+
+      const response = result.response;
+      
+      if (response.includes('No player was found')) {
+        return baseController.error(res, '玩家未找到，请检查游戏id是否绑定正确或是否有上线', 400);
+      }
+      
+      if (response.includes(req.user.gameName) && response.includes(model.fileName)) {
+        return baseController.success(res, {
+          rconResponse: response
+        }, '模型授权成功');
+      } else {
+        return baseController.error(res, '模型授权失败，服务器返回异常', 500);
+      }
+    } catch (err) {
+      console.error('授权模型错误:', err);
+      return baseController.error(res, '授权模型失败，请稍后再试', 500);
+    }
+  }
+
+  async function deauthorizeModel(req, res) {
+    try {
+      const modelId = parseInt(req.params.id);
+
+      if (!modelId) {
+        return baseController.error(res, '请提供有效的模型ID', 400);
+      }
+
+      const model = await baseController.prisma.Model.findFirst({
+        where: { id: modelId }
+      });
+
+      if (!model) {
+        return baseController.error(res, '模型不存在', 404);
+      }
+
+      if (model.currentType !== 'auth') {
+        return baseController.error(res, '只有私人模型才能解除授权', 400);
+      }
+
+      const isUploader = await baseController.prisma.ModelUploader.findFirst({
+        where: {
+          modelId: modelId,
+          userId: req.user.id
+        }
+      });
+
+      if (!isUploader) {
+        return baseController.error(res, '您没有权限解除授权此模型', 403);
+      }
+
+      const command = `ysm auth ${req.user.gameName} remove "${model.fileName}"`;
+      const result = await baseController.executeRCONCommand(command);
+
+      if (!result || !result.success) {
+        return baseController.error(res, 'RCON命令执行失败', 500);
+      }
+
+      const response = result.response;
+      
+      if (response.includes('No player was found')) {
+        return baseController.error(res, '玩家未找到，请检查游戏id是否绑定正确或是否有上线', 400);
+      }
+      
+      if (response.includes(req.user.gameName) && response.includes(model.fileName)) {
+        return baseController.success(res, {
+          rconResponse: response
+        }, '模型解除授权成功');
+      } else {
+        return baseController.error(res, '模型解除授权失败，服务器返回异常', 500);
+      }
+    } catch (err) {
+      console.error('解除授权模型错误:', err);
+      return baseController.error(res, '解除授权模型失败，请稍后再试', 500);
+    }
+  }
+
+  async function deleteAuthModel(req, res) {
+    try {
+      const modelId = parseInt(req.params.id);
+
+      if (!modelId) {
+        return baseController.error(res, '请提供有效的模型ID', 400);
+      }
+
+      const model = await baseController.prisma.Model.findFirst({
+        where: { id: modelId }
+      });
+
+      if (!model) {
+        return baseController.error(res, '模型不存在', 404);
+      }
+
+      if (model.currentType !== 'auth') {
+        return baseController.error(res, '只有私人模型才能删除', 400);
+      }
+
+      const isUploader = await baseController.prisma.ModelUploader.findFirst({
+        where: {
+          modelId: modelId,
+          userId: req.user.id
+        }
+      });
+
+      if (!isUploader) {
+        return baseController.error(res, '您没有权限删除此模型', 403);
+      }
+
+      const uploaderCount = await baseController.prisma.ModelUploader.count({
+        where: { modelId: modelId }
+      });
+
+      if (uploaderCount > 1) {
+        await baseController.prisma.ModelUploader.delete({
+          where: {
+            modelId_userId: {
+              modelId: modelId,
+              userId: req.user.id
+            }
+          }
+        });
+
+        return baseController.success(res, null, '已从您的模型列表中移除该模型');
+      } else {
+        const baseDir = process.env.YSM_MODEL_DIR || './ysm_models';
+        const filePath = path.join(baseDir, 'auth', model.fileName);
+        
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+
+        await baseController.prisma.Model.delete({
+          where: { id: modelId }
+        });
+
+        return baseController.success(res, null, '模型已删除');
+      }
+    } catch (err) {
+      console.error('删除模型错误:', err);
+      return baseController.error(res, '删除模型失败，请稍后再试', 500);
+    }
+  }
+
   return {
     hashVerification,
     custom,
-    auth
+    auth,
+    authorizeModel,
+    deauthorizeModel,
+    deleteAuthModel
   };
 }
 
