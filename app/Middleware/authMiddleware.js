@@ -52,7 +52,7 @@ const authMiddleware = async (req, res, next) => {
       return baseController.error(res, 'token已过期', 401);
     }
     
-    let tokenExp = await user.tokenExpiresAt;
+    let tokenExp = user.tokenExpiresAt;
     if (!tokenExp) {
       return baseController.error(res, 'token有效期异常', 401);
     }
