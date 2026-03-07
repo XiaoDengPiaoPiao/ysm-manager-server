@@ -24,22 +24,35 @@ model User {
   updatedAt DateTime @updatedAt
   
   // 关联关系
-  models Model[]
+  uploadedModels ModelUploader[]
 }
 
 model Model {
   id           Int     @id @default(autoincrement())
   allowAuth    Boolean @default(false)
   currentType  String  @default("") // auth 或 custom
-  uploaderId   Int
   hash         String  @default("")
   fileName     String  @default("")
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   
   // 关联关系
-  uploader     User        @relation(fields: [uploaderId], references: [id], onDelete: Cascade)
+  uploaders    ModelUploader[]
   authorizations ModelAuthorization[]
+}
+
+model ModelUploader {
+  id        Int     @id @default(autoincrement())
+  modelId   Int
+  userId    Int
+  createdAt DateTime @default(now())
+  
+  // 关联关系
+  model     Model   @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // 唯一约束，确保一个用户只能上传同一模型一次
+  @@unique([modelId, userId])
 }
 
 model ModelAuthorization {
