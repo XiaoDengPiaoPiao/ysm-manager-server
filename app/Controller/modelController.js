@@ -5,6 +5,24 @@
 import createController from './baseController.js';
 
 /**
+ * 修复文件名编码问题
+ * @param {string} filename 原始文件名
+ * @returns {string} 修复后的文件名
+ */
+const fixFilenameEncoding = (filename) => {
+  try {
+    return decodeURIComponent(escape(filename));
+  } catch (e) {
+    try {
+      const buffer = Buffer.from(filename, 'latin1');
+      return buffer.toString('utf8');
+    } catch (e2) {
+      return filename;
+    }
+  }
+};
+
+/**
  * 创建模型控制器实例
  * @returns {Object} 模型控制器对象
  */
@@ -64,7 +82,8 @@ function createModelController() {
       }
 
       const fileBuffer = req.file.buffer;
-      const fileName = req.file.originalname;
+      let fileName = req.file.originalname;
+      fileName = fixFilenameEncoding(fileName);
       const metadata = baseController.parseYsmMetadata(fileBuffer);
 
       if (!metadata.hash) {
