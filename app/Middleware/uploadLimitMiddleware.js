@@ -7,24 +7,26 @@ const createUploadLimitMiddleware = (modelType) => {
   return async (req, res, next) => {
     try {
       const userId = req.user.id;
-      const userName = req.user.name;
       
-      // nullname 账户上传公共模型不受限制
-      if (userName === 'nullname' && modelType === 'custom') {
-        return next();
-      }
-      
-      let limit;
       let typeName;
       
       if (modelType === 'custom') {
-        limit = parseInt(process.env.CUSTOM_UPLOAD_LIMIT) || 5;
         typeName = '公共';
       } else if (modelType === 'auth') {
-        limit = parseInt(process.env.AUTH_UPLOAD_LIMIT) || 10;
         typeName = '私有';
       } else {
         return baseController.error(res, '无效的模型类型', 400);
+      }
+
+      const user = await prisma.User.findFirst({
+        where: { id: userId }
+      });
+
+      let limit;
+      if (modelType === 'custom') {
+        limit = user.customUploadLimit;
+      } else if (modelType === 'auth') {
+        limit = user.authUploadLimit;
       }
 
       const modelCount = await prisma.modelUploader.count({

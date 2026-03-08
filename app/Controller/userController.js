@@ -44,11 +44,16 @@ function createUserController() {
       const saltRounds = 10;
       const hashedPassword = await bcrypt.hash(password, saltRounds);
       
+      const customUploadLimit = parseInt(process.env.CUSTOM_UPLOAD_LIMIT) || 5;
+      const authUploadLimit = parseInt(process.env.AUTH_UPLOAD_LIMIT) || 1;
+      
       const newUser = await baseController.prisma.User.create({
         data: {
           name,
           password: hashedPassword,
-          gameName
+          gameName,
+          customUploadLimit,
+          authUploadLimit
         },
         select: {
           id: true,

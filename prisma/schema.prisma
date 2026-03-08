@@ -20,6 +20,8 @@ model User {
   gameName String  @default("")
   token String?  @default("")
   tokenExpiresAt DateTime?
+  customUploadLimit Int     @default(5)
+  authUploadLimit   Int     @default(1)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   
