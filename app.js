@@ -25,7 +25,8 @@ import checkNullnameUser from './src/utils/initCheck.js';
 checkNullnameUser().then(() => {
   // 启动服务器
   app.listen(port, () => {
-    console.log(`Server is running on port ${port}`);
+    console.log(`服务器启动在 ${port}端口`);
+    console.log(`当前版本为 ${process.env.VERSION}`);
   });
 });
 
