@@ -3,8 +3,12 @@
  * 初始化Express应用并配置路由
  */
 import express from 'express';
+import cors from 'cors';//TEST
 const app = express();
 const port = 3000;
+
+// 添加CORS中间件，允许任何来源访问
+app.use(cors());//TEST
 
 // 添加JSON解析中间件
 app.use(express.json());
