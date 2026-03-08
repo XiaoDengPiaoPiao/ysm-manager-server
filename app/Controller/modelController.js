@@ -173,7 +173,7 @@ function createModelController() {
             where: { id: existingModel.id },
             data: { 
               currentType: 'custom',
-              allowAuth: metadata.free
+              allowAuth: !metadata.free
             }
           });
 
@@ -199,7 +199,7 @@ function createModelController() {
 
       const newModel = await baseController.createModelWithUploader(
         {
-          allowAuth: metadata.free,
+          allowAuth: !metadata.free,
           currentType: 'custom',
           hash: metadata.hash,
           fileName: fileName
@@ -236,7 +236,7 @@ function createModelController() {
         return baseController.error(res, '文件格式错误，未找到hash', 400);
       }
 
-      if (!metadata.free) {
+      if (metadata.free) {
         return baseController.error(res, '该模型不支持私有上传', 400);
       }
 
