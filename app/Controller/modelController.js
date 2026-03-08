@@ -281,49 +281,28 @@ function createModelController() {
         return baseController.error(res, '请提供有效的模型ID', 400);
       }
 
-      const model = await baseController.prisma.Model.findFirst({
-        where: { id: modelId }
-      });
-
-      if (!model) {
-        return baseController.error(res, '模型不存在', 404);
+      const modelValidation = await baseController.validateModel(modelId, 'auth');
+      if (!modelValidation.valid) {
+        return baseController.error(res, modelValidation.error, modelValidation.status);
       }
 
-      if (model.currentType !== 'auth') {
-        return baseController.error(res, '只有私人模型才能授权', 400);
-      }
-
-      const isUploader = await baseController.prisma.ModelUploader.findFirst({
-        where: {
-          modelId: modelId,
-          userId: req.user.id
-        }
-      });
-
+      const isUploader = await baseController.validateUploader(modelId, req.user.id);
       if (!isUploader) {
         return baseController.error(res, '您没有权限授权此模型', 403);
       }
 
-      const command = `ysm auth ${req.user.gameName} add "${model.fileName}"`;
-      const result = await baseController.executeRCONCommand(command);
+      const command = `ysm auth ${req.user.gameName} add "${modelValidation.model.fileName}"`;
+      const rconResult = await baseController.executeRCONAction(command);
 
-      if (!result || !result.success) {
-        return baseController.error(res, 'RCON命令执行失败', 500);
+      if (!rconResult.success) {
+        return baseController.error(res, rconResult.error, rconResult.status);
       }
 
-      const response = result.response;
+      const response = rconResult.response;
       const lowerResponse = response.toLowerCase();
       const lowerGameName = req.user.gameName.toLowerCase();
-      const lowerFileName = model.fileName.toLowerCase();
-      
-      if (lowerResponse.includes('no player was found')) {
-        return baseController.error(res, '玩家未找到，请检查游戏id是否绑定正确或是否有上线', 400);
-      }
-      
-      if (lowerResponse.includes('invalid name')) {
-        return baseController.error(res, '无效的玩家名称或UUID', 400);
-      }
-      
+      const lowerFileName = modelValidation.model.fileName.toLowerCase();
+
       if (lowerResponse.includes('add') && lowerResponse.includes('model') && lowerResponse.includes('player') && 
           lowerResponse.includes(lowerGameName) && lowerResponse.includes(lowerFileName)) {
         return baseController.success(res, {
@@ -346,49 +325,28 @@ function createModelController() {
         return baseController.error(res, '请提供有效的模型ID', 400);
       }
 
-      const model = await baseController.prisma.Model.findFirst({
-        where: { id: modelId }
-      });
-
-      if (!model) {
-        return baseController.error(res, '模型不存在', 404);
+      const modelValidation = await baseController.validateModel(modelId, 'auth');
+      if (!modelValidation.valid) {
+        return baseController.error(res, modelValidation.error, modelValidation.status);
       }
 
-      if (model.currentType !== 'auth') {
-        return baseController.error(res, '只有私人模型才能解除授权', 400);
-      }
-
-      const isUploader = await baseController.prisma.ModelUploader.findFirst({
-        where: {
-          modelId: modelId,
-          userId: req.user.id
-        }
-      });
-
+      const isUploader = await baseController.validateUploader(modelId, req.user.id);
       if (!isUploader) {
         return baseController.error(res, '您没有权限解除授权此模型', 403);
       }
 
-      const command = `ysm auth ${req.user.gameName} remove "${model.fileName}"`;
-      const result = await baseController.executeRCONCommand(command);
+      const command = `ysm auth ${req.user.gameName} remove "${modelValidation.model.fileName}"`;
+      const rconResult = await baseController.executeRCONAction(command);
 
-      if (!result || !result.success) {
-        return baseController.error(res, 'RCON命令执行失败', 500);
+      if (!rconResult.success) {
+        return baseController.error(res, rconResult.error, rconResult.status);
       }
 
-      const response = result.response;
+      const response = rconResult.response;
       const lowerResponse = response.toLowerCase();
       const lowerGameName = req.user.gameName.toLowerCase();
-      const lowerFileName = model.fileName.toLowerCase();
-      
-      if (lowerResponse.includes('no player was found')) {
-        return baseController.error(res, '玩家未找到，请检查游戏id是否绑定正确或是否有上线', 400);
-      }
-      
-      if (lowerResponse.includes('invalid name')) {
-        return baseController.error(res, '无效的玩家名称或UUID', 400);
-      }
-      
+      const lowerFileName = modelValidation.model.fileName.toLowerCase();
+
       if (lowerResponse.includes('remove') && lowerResponse.includes(lowerGameName) && lowerResponse.includes(lowerFileName)) {
         return baseController.success(res, {
           rconResponse: response
@@ -410,25 +368,12 @@ function createModelController() {
         return baseController.error(res, '请提供有效的模型ID', 400);
       }
 
-      const model = await baseController.prisma.Model.findFirst({
-        where: { id: modelId }
-      });
-
-      if (!model) {
-        return baseController.error(res, '模型不存在', 404);
+      const modelValidation = await baseController.validateModel(modelId, 'auth');
+      if (!modelValidation.valid) {
+        return baseController.error(res, modelValidation.error, modelValidation.status);
       }
 
-      if (model.currentType !== 'auth') {
-        return baseController.error(res, '只有私人模型才能删除', 400);
-      }
-
-      const isUploader = await baseController.prisma.ModelUploader.findFirst({
-        where: {
-          modelId: modelId,
-          userId: req.user.id
-        }
-      });
-
+      const isUploader = await baseController.validateUploader(modelId, req.user.id);
       if (!isUploader) {
         return baseController.error(res, '您没有权限删除此模型', 403);
       }
@@ -450,7 +395,7 @@ function createModelController() {
         return baseController.success(res, null, '已从您的模型列表中移除该模型');
       } else {
         const baseDir = process.env.YSM_MODEL_DIR || './ysm_models';
-        const filePath = path.join(baseDir, 'auth', model.fileName);
+        const filePath = path.join(baseDir, 'auth', modelValidation.model.fileName);
         
         if (fs.existsSync(filePath)) {
           fs.unlinkSync(filePath);

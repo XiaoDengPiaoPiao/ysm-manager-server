@@ -198,6 +198,105 @@ function createController() {
     return newModel;
   }
 
+  async function checkUploadLimit(userId, type) {
+    let limit, count;
+    if (type === 'custom') {
+      const user = await prisma.User.findFirst({
+        where: { id: userId }
+      });
+      limit = user.customUploadLimit;
+      count = await prisma.modelUploader.count({
+        where: {
+          userId,
+          model: {
+            currentType: 'custom'
+          }
+        }
+      });
+    } else {
+      limit = parseInt(process.env.AUTH_UPLOAD_LIMIT) || 10;
+      count = await prisma.modelUploader.count({
+        where: {
+          userId,
+          model: {
+            currentType: 'auth'
+          }
+        }
+      });
+    }
+    return { limit, count, exceeded: count >= limit };
+  }
+
+  async function validateModel(modelId, requiredType = null) {
+    const model = await prisma.Model.findFirst({
+      where: { id: modelId }
+    });
+
+    if (!model) {
+      return { valid: false, error: '模型不存在', status: 404 };
+    }
+
+    if (requiredType && model.currentType !== requiredType) {
+      const typeName = requiredType === 'auth' ? '私人' : '公共';
+      return { valid: false, error: `只有${typeName}模型才能执行此操作`, status: 400 };
+    }
+
+    return { valid: true, model };
+  }
+
+  async function validateUploader(modelId, userId) {
+    const isUploader = await prisma.ModelUploader.findFirst({
+      where: {
+        modelId,
+        userId
+      }
+    });
+    return !!isUploader;
+  }
+
+  async function executeRCONAction(command, successMessage, errorMessage) {
+    const result = await executeRCONCommand(command);
+
+    if (!result || !result.success) {
+      return { success: false, error: 'RCON命令执行失败', status: 500 };
+    }
+
+    const response = result.response;
+    const lowerResponse = response.toLowerCase();
+
+    if (lowerResponse.includes('no player was found')) {
+      return { success: false, error: '玩家未找到，请检查游戏id是否绑定正确或是否有上线', status: 400 };
+    }
+
+    if (lowerResponse.includes('invalid name')) {
+      return { success: false, error: '无效的玩家名称或UUID', status: 400 };
+    }
+
+    return { success: true, response };
+  }
+
+  async function getUserModels(userId, type = null) {
+    let where = { userId };
+    if (type) {
+      where.model = { currentType: type };
+    }
+
+    const models = await prisma.ModelUploader.findMany({
+      where,
+      include: { model: true }
+    });
+
+    return models.map(item => ({
+      id: item.model.id,
+      allowAuth: item.model.allowAuth,
+      currentType: item.model.currentType,
+      hash: item.model.hash,
+      fileName: item.model.fileName,
+      createdAt: item.model.createdAt,
+      uploadedAt: item.createdAt
+    }));
+  }
+
   async function executeRCONCommand(command) {
     console.log(`Executing RCON command: ${command}`);
     const rconClient = new RCONClient();
@@ -249,7 +348,12 @@ function createController() {
     findModelByHash,
     isUserUploader,
     addUploaderToModel,
-    createModelWithUploader
+    createModelWithUploader,
+    checkUploadLimit,
+    validateModel,
+    validateUploader,
+    executeRCONAction,
+    getUserModels
   };
 }
 
