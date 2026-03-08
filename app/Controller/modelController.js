@@ -312,12 +312,20 @@ function createModelController() {
       }
 
       const response = result.response;
+      const lowerResponse = response.toLowerCase();
+      const lowerGameName = req.user.gameName.toLowerCase();
+      const lowerFileName = model.fileName.toLowerCase();
       
-      if (response.includes('No player was found')) {
+      if (lowerResponse.includes('no player was found')) {
         return baseController.error(res, '玩家未找到，请检查游戏id是否绑定正确或是否有上线', 400);
       }
       
-      if (response.includes(req.user.gameName) && response.includes(model.fileName)) {
+      if (lowerResponse.includes('invalid name')) {
+        return baseController.error(res, '无效的玩家名称或UUID', 400);
+      }
+      
+      if (lowerResponse.includes('add') && lowerResponse.includes('model') && lowerResponse.includes('player') && 
+          lowerResponse.includes(lowerGameName) && lowerResponse.includes(lowerFileName)) {
         return baseController.success(res, {
           rconResponse: response
         }, '模型授权成功');
@@ -369,12 +377,19 @@ function createModelController() {
       }
 
       const response = result.response;
+      const lowerResponse = response.toLowerCase();
+      const lowerGameName = req.user.gameName.toLowerCase();
+      const lowerFileName = model.fileName.toLowerCase();
       
-      if (response.includes('No player was found')) {
+      if (lowerResponse.includes('no player was found')) {
         return baseController.error(res, '玩家未找到，请检查游戏id是否绑定正确或是否有上线', 400);
       }
       
-      if (response.includes(req.user.gameName) && response.includes(model.fileName)) {
+      if (lowerResponse.includes('invalid name')) {
+        return baseController.error(res, '无效的玩家名称或UUID', 400);
+      }
+      
+      if (lowerResponse.includes('remove') && lowerResponse.includes(lowerGameName) && lowerResponse.includes(lowerFileName)) {
         return baseController.success(res, {
           rconResponse: response
         }, '模型解除授权成功');
