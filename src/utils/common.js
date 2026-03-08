@@ -96,10 +96,11 @@ export function success(res, data, message = '操作成功') {
   });
 }
 
-export function error(res, message = '操作失败', code = 400) {
+export function error(res, message = '操作失败', code = 400,data = null) {
   return res.status(code).json({
     code,
     message,
+    data, 
     timestamp: new Date().toISOString()
   });
 }

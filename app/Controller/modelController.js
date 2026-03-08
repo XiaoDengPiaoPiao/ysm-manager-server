@@ -57,11 +57,11 @@ function createModelController() {
 
             await baseController.addUploaderToModel(existingModel.id, req.user.id);
 
-            return baseController.success(res, {
+            return baseController.error(res, '模型已转为公共模型，您已被添加为上传者', 410, {
               exists: true,
               modelId: existingModel.id,
               hash: hash
-            }, '模型已转为公共模型，您已被添加为上传者');
+            });
           }
           
           let expectedType;
@@ -82,11 +82,11 @@ function createModelController() {
         }
 
         if (type === 'custom') {
-          return baseController.success(res, {
+          return baseController.error(res, '当前公共模型已经存在', 410, {
             exists: true,
             modelId: existingModel.id,
             hash: hash
-          }, '当前公共模型已经存在');
+          });
         } else {
           const isAlreadyUploader = baseController.isUserUploader(existingModel, req.user.id);
 
@@ -109,11 +109,11 @@ function createModelController() {
             await baseController.addUploaderToModel(existingModel.id, req.user.id);
           }
 
-          return baseController.success(res, {
-            exists: true,
-            modelId: existingModel.id,
-            hash: hash
-          }, '模型已存在，已将您添加为上传者');
+          return baseController.error(res, '模型已存在，已将您添加为上传者', 410, {
+              exists: true,
+              modelId: existingModel.id,
+              hash: hash
+            });
         }
       } else {
         return baseController.success(res, {
