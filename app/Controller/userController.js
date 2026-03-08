@@ -221,6 +221,25 @@ function createUserController() {
     }
   }
 
+  async function info(req, res) {
+    try {
+      const user = await baseController.prisma.User.findFirst({
+        where: { id: req.user.id },
+        select: {
+          id: true,
+          name: true,
+          gameName: true,
+          createdAt: true
+        }
+      });
+      
+      return baseController.success(res, user, '获取用户信息成功');
+    } catch (err) {
+      console.error('获取用户信息错误:', err);
+      return baseController.error(res, '获取用户信息失败，请稍后再试', 500);
+    }
+  }
+
   async function updateGameName(req, res) {
     try {
       const { gameName } = req.body;
@@ -265,7 +284,8 @@ function createUserController() {
     getAuthModels,
     getCustomModels,
     getAllModels,
-    updateGameName
+    updateGameName,
+    info
   };
 }
 

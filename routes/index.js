@@ -38,6 +38,8 @@ userRouter.post('/register', securityMiddleware, userController.register);
 userRouter.post('/login', securityMiddleware, userController.login);
 // 登出 - 参数: 无 - 返回: 无
 userRouter.post('/logout', authMiddleware, userController.logout);
+// 获取当前登录用户信息 - 参数: 无 - 返回: {id, name, gameName, createdAt}
+userRouter.get('/info', authMiddleware, userController.info);
 // 更新游戏名称 - 参数: {gameName} - 返回: {id, name, gameName}
 userRouter.post('/updateGameName', authMiddleware, userController.updateGameName);
 // 获取私人模型列表 - 参数: 无 - 返回: [{id, allowAuth, currentType, hash, fileName, createdAt, uploadedAt}]
