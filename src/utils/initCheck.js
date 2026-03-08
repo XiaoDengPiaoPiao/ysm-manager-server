@@ -48,7 +48,7 @@ export async function checkNullnameUser() {
         data: {
           name: 'nullname',
           password: hashedPassword,
-          gameName: 'nullname'
+          gameName: 'nullnamenullnullnullnullnull'
         }
       });
       console.log('已创建nullname用户并设置密码');

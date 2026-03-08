@@ -27,18 +27,21 @@ function createModelController() {
           }
           
           if (existingModel.currentType === 'auth' && type === 'custom') {
-            const limit = parseInt(process.env.CUSTOM_UPLOAD_LIMIT) || 5;
-            const modelCount = await baseController.prisma.modelUploader.count({
-              where: {
-                userId: req.user.id,
-                model: {
-                  currentType: 'custom'
+            // nullname 账户上传公共模型不受限制
+            if (req.user.name !== 'nullname') {
+              const limit = parseInt(process.env.CUSTOM_UPLOAD_LIMIT) || 5;
+              const modelCount = await baseController.prisma.modelUploader.count({
+                where: {
+                  userId: req.user.id,
+                  model: {
+                    currentType: 'custom'
+                  }
                 }
-              }
-            });
+              });
 
-            if (modelCount >= limit) {
-              return baseController.error(res, `您已达到公共模型上传上限（最多 ${limit} 个）`, 403);
+              if (modelCount >= limit) {
+                return baseController.error(res, `您已达到公共模型上传上限（最多 ${limit} 个）`, 403);
+              }
             }
 
             await baseController.prisma.modelUploader.deleteMany({
@@ -143,18 +146,21 @@ function createModelController() {
 
       if (existingModel) {
         if (existingModel.currentType === 'auth') {
-          const limit = parseInt(process.env.CUSTOM_UPLOAD_LIMIT) || 5;
-          const modelCount = await baseController.prisma.modelUploader.count({
-            where: {
-              userId: req.user.id,
-              model: {
-                currentType: 'custom'
+          // nullname 账户上传公共模型不受限制
+          if (req.user.name !== 'nullname') {
+            const limit = parseInt(process.env.CUSTOM_UPLOAD_LIMIT) || 5;
+            const modelCount = await baseController.prisma.modelUploader.count({
+              where: {
+                userId: req.user.id,
+                model: {
+                  currentType: 'custom'
+                }
               }
-            }
-          });
+            });
 
-          if (modelCount >= limit) {
-            return baseController.error(res, `您已达到公共模型上传上限（最多 ${limit} 个）`, 403);
+            if (modelCount >= limit) {
+              return baseController.error(res, `您已达到公共模型上传上限（最多 ${limit} 个）`, 403);
+            }
           }
 
           await baseController.prisma.modelUploader.deleteMany({

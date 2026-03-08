@@ -7,6 +7,12 @@ const createUploadLimitMiddleware = (modelType) => {
   return async (req, res, next) => {
     try {
       const userId = req.user.id;
+      const userName = req.user.name;
+      
+      // nullname 账户上传公共模型不受限制
+      if (userName === 'nullname' && modelType === 'custom') {
+        return next();
+      }
       
       let limit;
       let typeName;
