@@ -222,6 +222,47 @@ function createUserController() {
     }
   }
 
+  async function changePassword(req, res) {
+    try {
+      const { oldPassword, newPassword } = req.body;
+      
+      if (!oldPassword || !newPassword) {
+        return baseController.error(res, '缺少必填字段', 400);
+      }
+      
+      if (newPassword.length < 6) {
+        return baseController.error(res, '新密码长度至少为6位', 400);
+      }
+      
+      const user = await baseController.prisma.User.findFirst({
+        where: { id: req.user.id }
+      });
+      
+      const passwordMatch = await bcrypt.compare(oldPassword, user.password);
+      
+      if (!passwordMatch) {
+        return baseController.error(res, '旧密码错误', 400);
+      }
+      
+      const saltRounds = 10;
+      const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
+      
+      await baseController.prisma.User.update({
+        where: { id: req.user.id },
+        data: { 
+          password: hashedPassword,
+          token: null,
+          tokenExpiresAt: null
+        }
+      });
+      
+      return baseController.success(res, null, '密码修改成功，已自动登出，请重新登录');
+    } catch (err) {
+      console.error('修改密码错误:', err);
+      return baseController.error(res, '修改密码失败，请稍后再试', 500);
+    }
+  }
+
   return {
     register,
     login,
@@ -230,7 +271,8 @@ function createUserController() {
     getCustomModels,
     getAllModels,
     updateGameName,
-    info
+    info,
+    changePassword
   };
 }
 

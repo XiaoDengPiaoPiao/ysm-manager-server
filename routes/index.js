@@ -42,6 +42,8 @@ userRouter.post('/logout', authMiddleware, userController.logout);
 userRouter.get('/info', authMiddleware, userController.info);
 // 更新游戏名称 - 参数: {gameName} - 返回: {id, name, gameName}
 userRouter.post('/updateGameName', authMiddleware, userController.updateGameName);
+// 修改密码 - 参数: {oldPassword, newPassword} - 返回: 无
+userRouter.post('/changePassword', authMiddleware, userController.changePassword);
 // 获取私人模型列表 - 参数: 无 - 返回: [{id, allowAuth, currentType, hash, fileName, createdAt, uploadedAt}]
 userRouter.get('/models/auth', authMiddleware, userController.getAuthModels);
 // 获取公共模型列表 - 参数: 无 - 返回: [{id, allowAuth, currentType, hash, fileName, createdAt, uploadedAt}]
@@ -54,6 +56,8 @@ router.use('/user', userRouter);
 const adminRouter = express.Router();
 // 重置密码 - 参数: {username} - 返回: {username, newPassword}
 adminRouter.post('/resetPassword', securityMiddleware, adminAuthMiddleware, administratorController.resetPassword);
+// 删除模型 - 参数: id(路径参数) - 返回: {modelId, fileName, currentType}
+adminRouter.delete('/delmodel/:id', securityMiddleware, adminAuthMiddleware, administratorController.deleteModel);
 router.use('/admin', adminRouter);
 
 // YSM模型路由组

@@ -1,5 +1,7 @@
 import createController from './baseController.js';
 import bcrypt from 'bcrypt';
+import path from 'path';
+import fs from 'fs';
 
 function createAdministratorController() {
   const baseController = createController();
@@ -43,8 +45,47 @@ function createAdministratorController() {
     }
   }
 
+  async function deleteModel(req, res) {
+    try {
+      const modelId = parseInt(req.params.id);
+
+      if (!modelId) {
+        return baseController.error(res, '请提供有效的模型ID', 400);
+      }
+
+      const model = await baseController.prisma.Model.findFirst({
+        where: { id: modelId }
+      });
+
+      if (!model) {
+        return baseController.error(res, '模型不存在', 404);
+      }
+
+      const baseDir = process.env.YSM_MODEL_DIR || './ysm_models';
+      const filePath = path.join(baseDir, model.currentType, model.fileName);
+
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+
+      await baseController.prisma.Model.delete({
+        where: { id: modelId }
+      });
+
+      return baseController.success(res, {
+        modelId: model.id,
+        fileName: model.fileName,
+        currentType: model.currentType
+      }, '模型已删除');
+    } catch (err) {
+      console.error('删除模型错误:', err);
+      return baseController.error(res, '删除模型失败，请稍后再试', 500);
+    }
+  }
+
   return {
-    resetPassword
+    resetPassword,
+    deleteModel
   };
 }
 
