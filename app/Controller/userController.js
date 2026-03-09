@@ -215,7 +215,7 @@ function createUserController() {
               });
               
               if (currentUser && currentUser.gameName === gameName) {
-                const rconCommand = `say "游戏名${gameName}已经是您的了，无需重复绑定"`;
+                const rconCommand = `title ${gameName} title {"text":"游戏名${gameName}已经是您的了，无需重复绑定"}`;
                 await baseController.executeRCONCommand(rconCommand);
                 await baseController.prisma.NameBinding.delete({
                   where: { id: binding.id }
@@ -228,7 +228,7 @@ function createUserController() {
               });
               
               if (existingUser && existingUser.id !== req.user.id) {
-                const rconCommand = `say "游戏名${gameName}已被绑定，无法重复绑定"`;
+                const rconCommand = `title ${gameName} title {"text":"游戏名${gameName}已被绑定，无法重复绑定"}`;
                 await baseController.executeRCONCommand(rconCommand);
                 await baseController.prisma.NameBinding.delete({
                   where: { id: binding.id }
@@ -250,7 +250,7 @@ function createUserController() {
               });
               
               if (updatedUser) {
-                const rconCommand = `say "已将${gameName}绑定到${updatedUser.name}"`;
+                const rconCommand = `title ${gameName} title {"text":"已将${gameName}绑定到${updatedUser.name}"}`;
                 await baseController.executeRCONCommand(rconCommand);
               }
             } else if (status === 'expired') {
