@@ -21,6 +21,8 @@ import adminAuthMiddleware from '../app/Middleware/adminAuthMiddleware.js';
 import uploadMiddleware from '../app/Middleware/fileUploadMiddleware.js';
 // 导入上传限制中间件
 import { checkCustomUploadLimit, checkAuthUploadLimit } from '../app/Middleware/uploadLimitMiddleware.js';
+// 导入游戏名检查中间件
+import checkGameName from '../app/Middleware/checkGameName.js';
 
 // 测试路由组
 // const testRouter = express.Router();
@@ -32,7 +34,7 @@ import { checkCustomUploadLimit, checkAuthUploadLimit } from '../app/Middleware/
 
 // 用户路由组
 const userRouter = express.Router();
-// 注册 - 参数: {name, password, gameName} - 返回: {id, name, gameName, createdAt}
+// 注册 - 参数: {name, password} - 返回: {id, name, createdAt}
 userRouter.post('/register', securityMiddleware, userController.register);
 // 登录 - 参数: {name, password} - 返回: {token, user: {id, name, gameName}}
 userRouter.post('/login', securityMiddleware, userController.login);
@@ -40,16 +42,18 @@ userRouter.post('/login', securityMiddleware, userController.login);
 userRouter.post('/logout', authMiddleware, userController.logout);
 // 获取当前登录用户信息 - 参数: 无 - 返回: {id, name, gameName, createdAt}
 userRouter.get('/info', authMiddleware, userController.info);
-// 更新游戏名称 - 参数: {gameName} - 返回: {id, name, gameName}
+// 更新游戏名称（绑定/换绑） - 参数: 无 - 返回: {bindToken, bindCommand, expiresAt}
 userRouter.post('/updateGameName', authMiddleware, userController.updateGameName);
+// 检查绑定状态 - 参数: 无 - 返回: {status, gameName?, bindToken?, bindCommand?, expiresAt?}
+userRouter.get('/bindingStatus', authMiddleware, userController.checkBindingStatus);
 // 修改密码 - 参数: {oldPassword, newPassword} - 返回: 无
 userRouter.post('/changePassword', authMiddleware, userController.changePassword);
 // 获取私人模型列表 - 参数: 无 - 返回: [{id, allowAuth, currentType, hash, fileName, createdAt, uploadedAt}]
-userRouter.get('/models/auth', authMiddleware, userController.getAuthModels);
+userRouter.get('/models/auth', authMiddleware, checkGameName, userController.getAuthModels);
 // 获取公共模型列表 - 参数: 无 - 返回: [{id, allowAuth, currentType, hash, fileName, createdAt, uploadedAt}]
-userRouter.get('/models/custom', authMiddleware, userController.getCustomModels);
+userRouter.get('/models/custom', authMiddleware, checkGameName, userController.getCustomModels);
 // 获取所有模型列表 - 参数: 无 - 返回: [{id, allowAuth, currentType, hash, fileName, createdAt, uploadedAt}]
-userRouter.get('/models/all', authMiddleware, userController.getAllModels);
+userRouter.get('/models/all', authMiddleware, checkGameName, userController.getAllModels);
 router.use('/user', userRouter);
 
 // 管理员路由组
@@ -65,17 +69,17 @@ router.use('/admin', adminRouter);
 // YSM模型路由组
 const ysmRouter = express.Router();
 // Hash验证 - 参数: {hash, type} - 返回: {exists, modelId?, hash}
-ysmRouter.post('/hashVerification', authMiddleware, modelController.hashVerification);
+ysmRouter.post('/hashVerification', authMiddleware, checkGameName, modelController.hashVerification);
 // 上传公共模型 - 参数: file(ysm文件) - 返回: {modelId, hash, fileName, filePath}
-ysmRouter.post('/custom', authMiddleware, checkCustomUploadLimit, uploadMiddleware.single('file'), modelController.custom);
+ysmRouter.post('/custom', authMiddleware, checkGameName, checkCustomUploadLimit, uploadMiddleware.single('file'), modelController.custom);
 // 上传私人模型 - 参数: file(ysm文件) - 返回: {modelId, hash, fileName, filePath}
-ysmRouter.post('/auth', authMiddleware, checkAuthUploadLimit, uploadMiddleware.single('file'), modelController.auth);
+ysmRouter.post('/auth', authMiddleware, checkGameName, checkAuthUploadLimit, uploadMiddleware.single('file'), modelController.auth);
 // 授权模型 - 参数: id(路径参数) - 返回: {rconResponse}
-ysmRouter.post('/auth/:id', authMiddleware, modelController.authorizeModel);
+ysmRouter.post('/auth/:id', authMiddleware, checkGameName, modelController.authorizeModel);
 // 解除授权模型 - 参数: id(路径参数) - 返回: {rconResponse}
-ysmRouter.post('/deauth/:id', authMiddleware, modelController.deauthorizeModel);
+ysmRouter.post('/deauth/:id', authMiddleware, checkGameName, modelController.deauthorizeModel);
 // 删除私人模型 - 参数: id(路径参数) - 返回: 无
-ysmRouter.delete('/auth/:id', authMiddleware, modelController.deleteAuthModel);
+ysmRouter.delete('/auth/:id', authMiddleware, checkGameName, modelController.deleteAuthModel);
 router.use('/ysm', ysmRouter);
 
 export default router;

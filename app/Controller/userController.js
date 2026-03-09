@@ -1,14 +1,15 @@
 import createController from './baseController.js';
 import bcrypt from 'bcrypt';
+import nameBindingManager from '../../src/utils/nameBindingManager.js';
 
 function createUserController() {
   const baseController = createController();
 
   async function register(req, res) {
     try {
-      const { name, password, gameName } = req.body;
+      const { name, password } = req.body;
       
-      if (!name || !password || !gameName) {
+      if (!name || !password) {
         return baseController.error(res, '缺少必填字段', 400);
       }
       
@@ -20,25 +21,12 @@ function createUserController() {
         return baseController.error(res, '密码长度至少为6位', 400);
       }
       
-      if (gameName.length < 3 || gameName.length > 30) {
-        return baseController.error(res, '游戏名称长度应在3-30之间', 400);
-      }
-      
       const existingUser = await baseController.prisma.User.findFirst({
-        where: {
-          OR: [
-            { name },
-            { gameName }
-          ]
-        }
+        where: { name }
       });
       
       if (existingUser) {
-        if (existingUser.name === name) {
-          return baseController.error(res, '用户名已存在', 400);
-        } else {
-          return baseController.error(res, '游戏名称已被使用', 400);
-        }
+        return baseController.error(res, '用户名已存在', 400);
       }
       
       const saltRounds = 10;
@@ -51,14 +39,12 @@ function createUserController() {
         data: {
           name,
           password: hashedPassword,
-          gameName,
           customUploadLimit,
           authUploadLimit
         },
         select: {
           id: true,
           name: true,
-          gameName: true,
           createdAt: true
         }
       });
@@ -187,38 +173,140 @@ function createUserController() {
 
   async function updateGameName(req, res) {
     try {
-      const { gameName } = req.body;
-      
-      if (!gameName) {
-        return baseController.error(res, '缺少游戏名称', 400);
+      const serverLogPath = process.env.SERVER_LOG;
+      if (!serverLogPath) {
+        return baseController.error(res, '服务器未配置日志路径', 500);
       }
       
-      if (gameName.length < 3 || gameName.length > 30) {
-        return baseController.error(res, '游戏名称长度应在3-30之间', 400);
-      }
+      const bindingExpireMinutes = parseInt(process.env.BINDING_EXPIRE_MINUTES) || 5;
+      const expiresAt = new Date(Date.now() + bindingExpireMinutes * 60 * 1000);
       
-      const existingUser = await baseController.prisma.User.findFirst({
-        where: { gameName }
+      const token = baseController.generateRandomString(18);
+      
+      const existingBinding = await baseController.prisma.NameBinding.findFirst({
+        where: { userId: req.user.id }
       });
       
-      if (existingUser) {
-        return baseController.error(res, '游戏名称已被使用', 400);
+      if (existingBinding) {
+        nameBindingManager.stopWatching(existingBinding.id);
+        await baseController.prisma.NameBinding.delete({
+          where: { id: existingBinding.id }
+        });
       }
       
-      const updatedUser = await baseController.prisma.User.update({
-        where: { id: req.user.id },
-        data: { gameName },
-        select: {
-          id: true,
-          name: true,
-          gameName: true
+      const binding = await baseController.prisma.NameBinding.create({
+        data: {
+          userId: req.user.id,
+          token,
+          expiresAt
         }
       });
       
-      return baseController.success(res, updatedUser, '游戏名称更新成功');
+      nameBindingManager.watchLogForBinding(
+        binding.id,
+        token,
+        serverLogPath,
+        expiresAt,
+        async (status, gameName) => {
+          try {
+            if (status === 'success') {
+              const existingUser = await baseController.prisma.User.findFirst({
+                where: { gameName }
+              });
+              
+              if (existingUser && existingUser.id !== req.user.id) {
+                const rconCommand = `say "游戏名${gameName}已被绑定，无法重复绑定"`;
+                await baseController.executeRCONCommand(rconCommand);
+                await baseController.prisma.NameBinding.delete({
+                  where: { id: binding.id }
+                });
+                return;
+              }
+              
+              await baseController.prisma.User.update({
+                where: { id: req.user.id },
+                data: { gameName }
+              });
+              
+              await baseController.prisma.NameBinding.delete({
+                where: { id: binding.id }
+              });
+              
+              const currentUser = await baseController.prisma.User.findFirst({
+                where: { id: req.user.id }
+              });
+              
+              if (currentUser) {
+                const rconCommand = `say "已将${gameName}绑定到${currentUser.name}"`;
+                await baseController.executeRCONCommand(rconCommand);
+              }
+            } else if (status === 'expired' || status === 'error') {
+              try {
+                await baseController.prisma.NameBinding.delete({
+                  where: { id: binding.id }
+                });
+              } catch (e) {
+                console.error('删除过期绑定数据失败:', e);
+              }
+            }
+          } catch (err) {
+            console.error('处理绑定结果失败:', err);
+          }
+        }
+      );
+      
+      return baseController.success(res, {
+        bindToken: token,
+        bindCommand: `BindNameManagerToken:${token}`,
+        expiresAt: expiresAt.toISOString()
+      }, '绑定码已生成，请在游戏中发送绑定指令');
     } catch (err) {
-      console.error('更新游戏名称错误:', err);
-      return baseController.error(res, '更新游戏名称失败，请稍后再试', 500);
+      console.error('生成绑定码错误:', err);
+      return baseController.error(res, '生成绑定码失败，请稍后再试', 500);
+    }
+  }
+
+  async function checkBindingStatus(req, res) {
+    try {
+      const binding = await baseController.prisma.NameBinding.findFirst({
+        where: { userId: req.user.id }
+      });
+      
+      if (!binding) {
+        const user = await baseController.prisma.User.findFirst({
+          where: { id: req.user.id },
+          select: {
+            id: true,
+            name: true,
+            gameName: true
+          }
+        });
+        
+        return baseController.success(res, {
+          status: user.gameName ? 'bound' : 'no_binding',
+          gameName: user.gameName
+        }, '查询成功');
+      }
+      
+      const now = new Date();
+      if (now > binding.expiresAt) {
+        nameBindingManager.stopWatching(binding.id);
+        await baseController.prisma.NameBinding.delete({
+          where: { id: binding.id }
+        });
+        
+        return baseController.error(res, '绑定码已过期，请重新申请', 422);
+      }
+      
+      return baseController.success(res, {
+        status: 'pending',
+        bindToken: binding.token,
+        bindCommand: `BindNameManagerToken:${binding.token}`,
+        expiresAt: binding.expiresAt.toISOString()
+      }, '等待游戏内绑定');
+    } catch (err) {
+      console.error('查询绑定状态错误:', err);
+      return baseController.error(res, '查询绑定状态失败，请稍后再试', 500);
     }
   }
 
@@ -271,6 +359,7 @@ function createUserController() {
     getCustomModels,
     getAllModels,
     updateGameName,
+    checkBindingStatus,
     info,
     changePassword
   };
