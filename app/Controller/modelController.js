@@ -1,7 +1,5 @@
 import createController from './baseController.js';
 import { fixFilenameEncoding } from '../../src/utils/common.js';
-import fs from 'fs';
-import path from 'path';
 
 function createModelController() {
   const baseController = createController();
@@ -27,21 +25,9 @@ function createModelController() {
           }
           
           if (existingModel.currentType === 'auth' && type === 'custom') {
-            const user = await baseController.prisma.User.findFirst({
-              where: { id: req.user.id }
-            });
-            const limit = user.customUploadLimit;
-            const modelCount = await baseController.prisma.modelUploader.count({
-              where: {
-                userId: req.user.id,
-                model: {
-                  currentType: 'custom'
-                }
-              }
-            });
-
-            if (modelCount >= limit) {
-              return baseController.error(res, `您已达到公共模型上传上限（最多 ${limit} 个）`, 403);
+            const uploadLimitCheck = await baseController.checkUserUploadLimit(req.user.id, 'custom');
+            if (!uploadLimitCheck.valid) {
+              return baseController.error(res, uploadLimitCheck.error, uploadLimitCheck.status);
             }
 
             await baseController.prisma.modelUploader.deleteMany({
@@ -57,13 +43,7 @@ function createModelController() {
 
             await baseController.addUploaderToModel(existingModel.id, req.user.id);
 
-            const baseDir = process.env.YSM_MODEL_DIR || './ysm_models';
-            const authFilePath = path.join(baseDir, 'auth', existingModel.fileName);
-            const customFilePath = path.join(baseDir, 'custom', existingModel.fileName);
-            
-            if (fs.existsSync(authFilePath)) {
-              fs.renameSync(authFilePath, customFilePath);
-            }
+            baseController.moveModelFile(existingModel.fileName, 'auth', 'custom');
 
             return baseController.error(res, '模型已转为公共模型，您已被添加为上传者', 410, {
               exists: true,
@@ -99,19 +79,9 @@ function createModelController() {
           const isAlreadyUploader = baseController.isUserUploader(existingModel, req.user.id);
 
           if (!isAlreadyUploader) {
-            const limit = parseInt(process.env.AUTH_UPLOAD_LIMIT) || 10;
-            
-            const modelCount = await baseController.prisma.modelUploader.count({
-              where: {
-                userId: req.user.id,
-                model: {
-                  currentType: 'auth'
-                }
-              }
-            });
-
-            if (modelCount >= limit) {
-              return baseController.error(res, `您已达到私有模型上传上限（最多 ${limit} 个）`, 403);
+            const uploadLimitCheck = await baseController.checkUserUploadLimit(req.user.id, 'auth');
+            if (!uploadLimitCheck.valid) {
+              return baseController.error(res, uploadLimitCheck.error, uploadLimitCheck.status);
             }
 
             await baseController.addUploaderToModel(existingModel.id, req.user.id);
@@ -154,21 +124,9 @@ function createModelController() {
 
       if (existingModel) {
         if (existingModel.currentType === 'auth') {
-          const user = await baseController.prisma.User.findFirst({
-            where: { id: req.user.id }
-          });
-          const limit = user.customUploadLimit;
-          const modelCount = await baseController.prisma.modelUploader.count({
-            where: {
-              userId: req.user.id,
-              model: {
-                currentType: 'custom'
-              }
-            }
-          });
-
-          if (modelCount >= limit) {
-            return baseController.error(res, `您已达到公共模型上传上限（最多 ${limit} 个）`, 403);
+          const uploadLimitCheck = await baseController.checkUserUploadLimit(req.user.id, 'custom');
+          if (!uploadLimitCheck.valid) {
+            return baseController.error(res, uploadLimitCheck.error, uploadLimitCheck.status);
           }
 
           await baseController.prisma.modelUploader.deleteMany({
@@ -187,20 +145,14 @@ function createModelController() {
 
           await baseController.addUploaderToModel(existingModel.id, req.user.id);
 
-          const baseDir = process.env.YSM_MODEL_DIR || './ysm_models';
-          const authFilePath = path.join(baseDir, 'auth', existingModel.fileName);
-          const customFilePath = path.join(baseDir, 'custom', existingModel.fileName);
-          
-          if (fs.existsSync(authFilePath)) {
-            fs.renameSync(authFilePath, customFilePath);
-          }
+          baseController.moveModelFile(existingModel.fileName, 'auth', 'custom');
 
           await baseController.reloadModels();
           return baseController.success(res, {
             modelId: existingModel.id,
             hash: metadata.hash,
             fileName: existingModel.fileName,
-            filePath: customFilePath
+            filePath: ''
           }, '模型已转为公共模型，您已被添加为上传者');
         }
         return baseController.error(res, '模型出现重复或服务器处理错误', 540);
@@ -407,12 +359,7 @@ function createModelController() {
 
         return baseController.success(res, null, '已从您的模型列表中移除该模型');
       } else {
-        const baseDir = process.env.YSM_MODEL_DIR || './ysm_models';
-        const filePath = path.join(baseDir, 'auth', modelValidation.model.fileName);
-        
-        if (fs.existsSync(filePath)) {
-          fs.unlinkSync(filePath);
-        }
+        baseController.deleteModelFile(modelValidation.model.fileName, 'auth');
 
         await baseController.prisma.Model.delete({
           where: { id: modelId }

@@ -64,6 +64,12 @@ adminRouter.post('/resetPassword', securityMiddleware, adminAuthMiddleware, admi
 adminRouter.delete('/delmodel/:id', securityMiddleware, adminAuthMiddleware, administratorController.deleteModel);
 // 根据文件名查找模型 - 参数: {fileName} - 返回: 模型信息及上传者信息
 adminRouter.post('/getmodel', securityMiddleware, adminAuthMiddleware, administratorController.getModelByFileName);
+// 更新用户上传限制 - 参数: {username, customUploadLimit?, authUploadLimit?} - 返回: {id, name, customUploadLimit, authUploadLimit, ...uploadStats}
+adminRouter.post('/updateUploadLimit', securityMiddleware, adminAuthMiddleware, administratorController.updateUserUploadLimit);
+// 通过用户名获取用户信息 - 参数: {username} - 返回: 用户详细信息及上传统计
+adminRouter.post('/getUserInfoByUsername', securityMiddleware, adminAuthMiddleware, administratorController.getUserInfoByUsername);
+// 通过游戏名获取用户信息 - 参数: {gameName} - 返回: 用户详细信息及上传统计
+adminRouter.post('/getUserInfoByGameName', securityMiddleware, adminAuthMiddleware, administratorController.getUserInfoByGameName);
 router.use('/admin', adminRouter);
 
 // YSM模型路由组

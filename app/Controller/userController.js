@@ -154,17 +154,13 @@ function createUserController() {
 
   async function info(req, res) {
     try {
-      const user = await baseController.prisma.User.findFirst({
-        where: { id: req.user.id },
-        select: {
-          id: true,
-          name: true,
-          gameName: true,
-          createdAt: true
-        }
-      });
+      const userInfo = await baseController.getUserCompleteInfo(req.user.id);
       
-      return baseController.success(res, user, '获取用户信息成功');
+      if (!userInfo) {
+        return baseController.error(res, '用户不存在', 404);
+      }
+      
+      return baseController.success(res, userInfo, '获取用户信息成功');
     } catch (err) {
       console.error('获取用户信息错误:', err);
       return baseController.error(res, '获取用户信息失败，请稍后再试', 500);

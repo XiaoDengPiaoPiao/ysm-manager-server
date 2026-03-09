@@ -1,7 +1,5 @@
 import createController from './baseController.js';
 import bcrypt from 'bcrypt';
-import path from 'path';
-import fs from 'fs';
 
 function createAdministratorController() {
   const baseController = createController();
@@ -61,12 +59,7 @@ function createAdministratorController() {
         return baseController.error(res, '模型不存在', 404);
       }
 
-      const baseDir = process.env.YSM_MODEL_DIR || './ysm_models';
-      const filePath = path.join(baseDir, model.currentType, model.fileName);
-
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-      }
+      baseController.deleteModelFile(model.fileName, model.currentType);
 
       await baseController.prisma.Model.delete({
         where: { id: modelId }
@@ -137,10 +130,135 @@ function createAdministratorController() {
     }
   }
 
+  async function updateUserUploadLimit(req, res) {
+    try {
+      const { username, customUploadLimit, authUploadLimit } = req.body;
+
+      if (!username) {
+        return baseController.error(res, '缺少用户名', 400);
+      }
+
+      if (customUploadLimit === undefined && authUploadLimit === undefined) {
+        return baseController.error(res, '至少需要提供一个上传限制参数', 400);
+      }
+
+      const user = await baseController.prisma.User.findFirst({
+        where: { name: username }
+      });
+
+      if (!user) {
+        return baseController.error(res, '用户不存在', 400);
+      }
+
+      const uploadStats = await baseController.getUserUploadStats(user.id);
+
+      if (customUploadLimit !== undefined) {
+        if (typeof customUploadLimit !== 'number' || customUploadLimit < 0) {
+          return baseController.error(res, '公共模型上传限制必须是非负整数', 400);
+        }
+        if (customUploadLimit < uploadStats.customUploaded) {
+          return baseController.error(res, `公共模型上传限制不能低于已上传数量（已上传 ${uploadStats.customUploaded} 个）`, 400);
+        }
+      }
+
+      if (authUploadLimit !== undefined) {
+        if (typeof authUploadLimit !== 'number' || authUploadLimit < 0) {
+          return baseController.error(res, '私人模型上传限制必须是非负整数', 400);
+        }
+        if (authUploadLimit < uploadStats.authUploaded) {
+          return baseController.error(res, `私人模型上传限制不能低于已上传数量（已上传 ${uploadStats.authUploaded} 个）`, 400);
+        }
+      }
+
+      const updateData = {};
+      if (customUploadLimit !== undefined) {
+        updateData.customUploadLimit = customUploadLimit;
+      }
+      if (authUploadLimit !== undefined) {
+        updateData.authUploadLimit = authUploadLimit;
+      }
+
+      const updatedUser = await baseController.prisma.User.update({
+        where: { id: user.id },
+        data: updateData,
+        select: {
+          id: true,
+          name: true,
+          customUploadLimit: true,
+          authUploadLimit: true
+        }
+      });
+
+      const newUploadStats = await baseController.getUserUploadStats(user.id);
+      const result = {
+        ...updatedUser,
+        ...newUploadStats
+      };
+
+      return baseController.success(res, result, '用户上传限制更新成功');
+    } catch (err) {
+      console.error('更新用户上传限制错误:', err);
+      return baseController.error(res, '更新用户上传限制失败，请稍后再试', 500);
+    }
+  }
+
+  async function getUserInfoByUsername(req, res) {
+    try {
+      const { username } = req.body;
+
+      if (!username) {
+        return baseController.error(res, '缺少用户名', 400);
+      }
+
+      const user = await baseController.prisma.User.findFirst({
+        where: { name: username }
+      });
+
+      if (!user) {
+        return baseController.error(res, '用户不存在', 404);
+      }
+
+      const userInfo = await baseController.getUserCompleteInfo(user.id);
+
+      return baseController.success(res, userInfo, '获取用户信息成功');
+    } catch (err) {
+      console.error('获取用户信息错误:', err);
+      return baseController.error(res, '获取用户信息失败，请稍后再试', 500);
+    }
+  }
+
+  async function getUserInfoByGameName(req, res) {
+    try {
+      const { gameName } = req.body;
+
+      if (!gameName) {
+        return baseController.error(res, '缺少游戏名', 400);
+      }
+
+      const user = await baseController.prisma.User.findFirst({
+        where: { gameName }
+      });
+
+      if (!user) {
+        return baseController.error(res, '用户不存在', 404);
+      }
+
+      const userInfo = await baseController.getUserCompleteInfo(user.id);
+
+      return baseController.success(res, userInfo, '获取用户信息成功');
+    } catch (err) {
+      console.error('获取用户信息错误:', err);
+      return baseController.error(res, '获取用户信息失败，请稍后再试', 500);
+    }
+  }
+
   return {
     resetPassword,
     deleteModel,
-    getModelByFileName
+    getModelByFileName,
+    updateUserUploadLimit,
+    getUserInfoByUsername,
+    getUserInfoByGameName
   };
 }
 

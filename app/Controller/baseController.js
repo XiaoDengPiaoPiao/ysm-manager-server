@@ -4,6 +4,8 @@ import prisma from '../../src/utils/prisma.js';
 import { createConnection } from 'net';
 import { BufferReader, BufferWriter, decode, encode } from '../../src/utils/rcon.js';
 import * as common from '../../src/utils/common.js';
+import fs from 'fs';
+import path from 'path';
 
 class RCONClient {
   constructor(host = process.env.RCON_HOST || "127.0.0.1", port = parseInt(process.env.RCON_PORT) || 25575) {
@@ -297,6 +299,118 @@ function createController() {
     }));
   }
 
+  async function getUserUploadStats(userId) {
+    const user = await prisma.User.findFirst({
+      where: { id: userId }
+    });
+
+    if (!user) {
+      return null;
+    }
+
+    const customCount = await prisma.ModelUploader.count({
+      where: {
+        userId,
+        model: {
+          currentType: 'custom'
+        }
+      }
+    });
+
+    const authCount = await prisma.ModelUploader.count({
+      where: {
+        userId,
+        model: {
+          currentType: 'auth'
+        }
+      }
+    });
+
+    return {
+      customUploadLimit: user.customUploadLimit,
+      customUploaded: customCount,
+      customRemaining: user.customUploadLimit - customCount,
+      authUploadLimit: user.authUploadLimit,
+      authUploaded: authCount,
+      authRemaining: user.authUploadLimit - authCount
+    };
+  }
+
+  function moveModelFile(fileName, fromType, toType) {
+    const baseDir = process.env.YSM_MODEL_DIR || './ysm_models';
+    const srcPath = path.join(baseDir, fromType, fileName);
+    const destPath = path.join(baseDir, toType, fileName);
+
+    if (fs.existsSync(srcPath)) {
+      fs.renameSync(srcPath, destPath);
+      return true;
+    }
+    return false;
+  }
+
+  function deleteModelFile(fileName, type) {
+    const baseDir = process.env.YSM_MODEL_DIR || './ysm_models';
+    const filePath = path.join(baseDir, type, fileName);
+
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+      return true;
+    }
+    return false;
+  }
+
+  async function getUserCompleteInfo(userId) {
+    const user = await prisma.User.findFirst({
+      where: { id: userId },
+      select: {
+        id: true,
+        name: true,
+        gameName: true,
+        createdAt: true,
+        customUploadLimit: true,
+        authUploadLimit: true,
+      }
+    });
+
+    if (!user) {
+      return null;
+    }
+
+    const uploadStats = await getUserUploadStats(userId);
+    return {
+      ...user,
+      ...uploadStats
+    };
+  }
+
+  async function checkUserUploadLimit(userId, modelType) {
+    const user = await prisma.User.findFirst({
+      where: { id: userId }
+    });
+
+    if (!user) {
+      return { valid: false, error: '用户不存在', status: 400 };
+    }
+
+    const count = await prisma.ModelUploader.count({
+      where: {
+        userId,
+        model: {
+          currentType: modelType
+        }
+      }
+    });
+
+    const limit = modelType === 'custom' ? user.customUploadLimit : user.authUploadLimit;
+    const typeName = modelType === 'custom' ? '公共' : '私人';
+
+    if (count >= limit) {
+      return { valid: false, error: `您已达到${typeName}模型上传上限（最多 ${limit} 个）`, status: 403 };
+    }
+
+    return { valid: true, count, limit };
+  }
+
   async function executeRCONCommand(command) {
     console.log(`Executing RCON command: ${command}`);
     const rconClient = new RCONClient();
@@ -365,7 +479,12 @@ function createController() {
     validateModel,
     validateUploader,
     executeRCONAction,
-    getUserModels
+    getUserModels,
+    getUserUploadStats,
+    moveModelFile,
+    deleteModelFile,
+    getUserCompleteInfo,
+    checkUserUploadLimit
   };
 }
 
