@@ -45,6 +45,8 @@ function createModelController() {
 
             baseController.moveModelFile(existingModel.fileName, 'auth', 'custom');
 
+            await baseController.reloadModels();
+
             return baseController.error(res, '模型已转为公共模型，您已被添加为上传者', 410, {
               exists: true,
               modelId: existingModel.id,
@@ -364,6 +366,8 @@ function createModelController() {
         await baseController.prisma.Model.delete({
           where: { id: modelId }
         });
+
+        await baseController.reloadModels();
 
         return baseController.success(res, null, '模型已删除');
       }

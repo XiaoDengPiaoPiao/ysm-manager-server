@@ -65,6 +65,8 @@ function createAdministratorController() {
         where: { id: modelId }
       });
 
+      await baseController.reloadModels();
+
       return baseController.success(res, {
         modelId: model.id,
         fileName: model.fileName,
