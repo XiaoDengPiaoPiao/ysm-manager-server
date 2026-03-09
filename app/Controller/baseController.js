@@ -334,10 +334,22 @@ function createController() {
     }
   }
 
+  async function reloadModels() {
+    const autoReloadEnabled = process.env.AUTO_RELOAD_ON_UPLOAD === 'true';
+    if (!autoReloadEnabled) {
+      console.log('自动重载已禁用，跳过模型重载');
+      return;
+    }
+    
+    console.log('执行模型重载...');
+    await executeRCONCommand('ysm model reload');
+  }
+
   return {
     success: common.success,
     error: common.error,
     executeRCONCommand,
+    reloadModels,
     prisma,
     generateRandomString: common.generateRandomString,
     generateToken: common.generateToken,

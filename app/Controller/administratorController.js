@@ -83,9 +83,64 @@ function createAdministratorController() {
     }
   }
 
+  async function getModelByFileName(req, res) {
+    try {
+      const { fileName } = req.body;
+
+      if (!fileName) {
+        return baseController.error(res, '缺少文件名', 400);
+      }
+
+      const model = await baseController.prisma.Model.findFirst({
+        where: { fileName },
+        include: {
+          uploaders: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                  gameName: true,
+                  createdAt: true
+                }
+              }
+            }
+          }
+        }
+      });
+
+      if (!model) {
+        return baseController.error(res, '模型不存在', 404);
+      }
+
+      const result = {
+        id: model.id,
+        allowAuth: model.allowAuth,
+        currentType: model.currentType,
+        hash: model.hash,
+        fileName: model.fileName,
+        createdAt: model.createdAt,
+        updatedAt: model.updatedAt,
+        uploaders: model.uploaders.map(uploader => ({
+          id: uploader.user.id,
+          name: uploader.user.name,
+          gameName: uploader.user.gameName,
+          createdAt: uploader.user.createdAt,
+          uploadedAt: uploader.createdAt
+        }))
+      };
+
+      return baseController.success(res, result, '获取模型信息成功');
+    } catch (err) {
+      console.error('获取模型信息错误:', err);
+      return baseController.error(res, '获取模型信息失败，请稍后再试', 500);
+    }
+  }
+
   return {
     resetPassword,
-    deleteModel
+    deleteModel,
+    getModelByFileName
   };
 }
 

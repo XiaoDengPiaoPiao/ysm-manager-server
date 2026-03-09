@@ -58,6 +58,8 @@ const adminRouter = express.Router();
 adminRouter.post('/resetPassword', securityMiddleware, adminAuthMiddleware, administratorController.resetPassword);
 // 删除模型 - 参数: id(路径参数) - 返回: {modelId, fileName, currentType}
 adminRouter.delete('/delmodel/:id', securityMiddleware, adminAuthMiddleware, administratorController.deleteModel);
+// 根据文件名查找模型 - 参数: {fileName} - 返回: 模型信息及上传者信息
+adminRouter.post('/getmodel', securityMiddleware, adminAuthMiddleware, administratorController.getModelByFileName);
 router.use('/admin', adminRouter);
 
 // YSM模型路由组

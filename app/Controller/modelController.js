@@ -57,6 +57,14 @@ function createModelController() {
 
             await baseController.addUploaderToModel(existingModel.id, req.user.id);
 
+            const baseDir = process.env.YSM_MODEL_DIR || './ysm_models';
+            const authFilePath = path.join(baseDir, 'auth', existingModel.fileName);
+            const customFilePath = path.join(baseDir, 'custom', existingModel.fileName);
+            
+            if (fs.existsSync(authFilePath)) {
+              fs.renameSync(authFilePath, customFilePath);
+            }
+
             return baseController.error(res, '模型已转为公共模型，您已被添加为上传者', 410, {
               exists: true,
               modelId: existingModel.id,
@@ -187,6 +195,7 @@ function createModelController() {
             fs.renameSync(authFilePath, customFilePath);
           }
 
+          await baseController.reloadModels();
           return baseController.success(res, {
             modelId: existingModel.id,
             hash: metadata.hash,
@@ -208,6 +217,8 @@ function createModelController() {
       );
 
       const filePath = await baseController.saveYsmFile(fileBuffer, fileName, 'custom');
+      
+      await baseController.reloadModels();
 
       return baseController.success(res, {
         modelId: newModel.id,
@@ -260,6 +271,8 @@ function createModelController() {
       );
 
       const filePath = await baseController.saveYsmFile(fileBuffer, fileName, 'auth');
+      
+      await baseController.reloadModels();
 
       return baseController.success(res, {
         modelId: newModel.id,

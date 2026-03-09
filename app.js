@@ -33,6 +33,24 @@ app.get('/', (req, res) => {
 
 // 导入初始化检查
 import checkNullnameUser from './src/utils/initCheck.js';
+// 导入baseController用于模型重载
+import createController from './app/Controller/baseController.js';
+const baseController = createController();
+
+// 定时重载模型功能
+let reloadTimer = null;
+function setupScheduledReload() {
+  const reloadTime = parseInt(process.env.RELOAD_TIME);
+  if (reloadTime && reloadTime > 0) {
+    console.log(`定时模型重载已启用，间隔 ${reloadTime}ms`);
+    reloadTimer = setInterval(async () => {
+      console.log('执行定时模型重载...');
+      await baseController.executeRCONCommand('ysm model reload');
+    }, reloadTime);
+  } else {
+    console.log('定时模型重载未配置或已禁用');
+  }
+}
 
 // 执行初始化检查
 checkNullnameUser().then(() => {
@@ -40,6 +58,8 @@ checkNullnameUser().then(() => {
   app.listen(port, () => {
     console.log(`服务器启动在 ${port}端口`);
     console.log(`当前版本为 ${process.env.VERSION}`);
+    // 设置定时重载
+    setupScheduledReload();
   });
 });
 
