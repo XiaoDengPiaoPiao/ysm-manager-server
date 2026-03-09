@@ -210,6 +210,19 @@ function createUserController() {
         async (status, gameName) => {
           try {
             if (status === 'success') {
+              const currentUser = await baseController.prisma.User.findFirst({
+                where: { id: req.user.id }
+              });
+              
+              if (currentUser && currentUser.gameName === gameName) {
+                const rconCommand = `say "游戏名${gameName}已经是您的了，无需重复绑定"`;
+                await baseController.executeRCONCommand(rconCommand);
+                await baseController.prisma.NameBinding.delete({
+                  where: { id: binding.id }
+                });
+                return;
+              }
+              
               const existingUser = await baseController.prisma.User.findFirst({
                 where: { gameName }
               });
@@ -232,15 +245,15 @@ function createUserController() {
                 where: { id: binding.id }
               });
               
-              const currentUser = await baseController.prisma.User.findFirst({
+              const updatedUser = await baseController.prisma.User.findFirst({
                 where: { id: req.user.id }
               });
               
-              if (currentUser) {
-                const rconCommand = `say "已将${gameName}绑定到${currentUser.name}"`;
+              if (updatedUser) {
+                const rconCommand = `say "已将${gameName}绑定到${updatedUser.name}"`;
                 await baseController.executeRCONCommand(rconCommand);
               }
-            } else if (status === 'expired' || status === 'error') {
+            } else if (status === 'expired') {
               try {
                 await baseController.prisma.NameBinding.delete({
                   where: { id: binding.id }
