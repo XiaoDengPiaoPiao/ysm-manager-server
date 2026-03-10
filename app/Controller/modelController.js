@@ -122,6 +122,14 @@ function createModelController() {
         return baseController.error(res, '文件格式错误，未找到hash', 400);
       }
 
+      const existingFileModel = await baseController.prisma.Model.findFirst({
+        where: { fileName }
+      });
+
+      if (existingFileModel && existingFileModel.hash !== metadata.hash) {
+        return baseController.error(res, '当前文件名已存在，请更改文件名', 423);
+      }
+
       const existingModel = await baseController.findModelByHash(metadata.hash);
 
       if (existingModel) {
@@ -203,6 +211,14 @@ function createModelController() {
 
       if (metadata.free) {
         return baseController.error(res, '该模型不支持私有上传', 400);
+      }
+
+      const existingFileModel = await baseController.prisma.Model.findFirst({
+        where: { fileName }
+      });
+
+      if (existingFileModel && existingFileModel.hash !== metadata.hash) {
+        return baseController.error(res, '当前文件名已存在，请更改文件名', 423);
       }
 
       const existingModel = await baseController.findModelByHash(metadata.hash);
