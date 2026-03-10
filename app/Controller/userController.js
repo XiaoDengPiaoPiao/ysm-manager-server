@@ -176,8 +176,9 @@ function createUserController() {
       
       const bindingExpireMinutes = parseInt(process.env.BINDING_EXPIRE_MINUTES) || 5;
       const expiresAt = new Date(Date.now() + bindingExpireMinutes * 60 * 1000);
-      
-      const token = baseController.generateRandomString(18);
+      // 为什么要生成235个？因为mc聊天框长度最高只有256个字符，BindNameManagerToken:完了之后只剩235位
+      // 这么写是为了防止有人通过输入<假id>BindNameManagerToken:密钥，来进行假绑定
+      const token = baseController.generateRandomString(235);
       
       const existingBinding = await baseController.prisma.NameBinding.findFirst({
         where: { userId: req.user.id }
