@@ -31,13 +31,17 @@ model User {
 }
 
 model NameBinding {
-  id        Int     @id @default(autoincrement())
-  userId    Int
-  token     String  @unique
-  expiresAt DateTime
-  createdAt DateTime @default(now())
+  id                Int     @id @default(autoincrement())
+  userId            Int
+  gameName          String
+  verificationCode  String
+  token             String  @unique
+  expiresAt         DateTime
+  attempts          Int     @default(0)
+  lastSentAt        DateTime
+  createdAt         DateTime @default(now())
   
-  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Model {

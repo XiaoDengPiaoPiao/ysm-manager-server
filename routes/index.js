@@ -42,9 +42,11 @@ userRouter.post('/login', securityMiddleware, userController.login);
 userRouter.post('/logout', authMiddleware, userController.logout);
 // 获取当前登录用户信息 - 参数: 无 - 返回: {id, name, gameName, createdAt}
 userRouter.get('/info', authMiddleware, userController.info);
-// 更新游戏名称（绑定/换绑） - 参数: 无 - 返回: {bindToken, bindCommand, expiresAt}
+// 更新游戏名称（发送验证码） - 参数: {gameName} - 返回: {token, expiresAt}
 userRouter.post('/updateGameName', authMiddleware, userController.updateGameName);
-// 检查绑定状态 - 参数: 无 - 返回: {status, gameName?, bindToken?, bindCommand?, expiresAt?}
+// 验证游戏名称绑定 - 参数: {gameName, verificationCode} - 返回: {gameName}
+userRouter.post('/verifyGameName', authMiddleware, userController.verifyGameName);
+// 检查绑定状态 - 参数: 无 - 返回: {status, gameName?, expiresAt?, attempts?}
 userRouter.get('/bindingStatus', authMiddleware, userController.checkBindingStatus);
 // 修改密码 - 参数: {oldPassword, newPassword} - 返回: 无
 userRouter.post('/changePassword', authMiddleware, userController.changePassword);
