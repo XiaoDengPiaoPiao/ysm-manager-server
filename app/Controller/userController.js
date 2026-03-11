@@ -175,6 +175,55 @@ function createUserController() {
     return code;
   }
 
+  function buildTellrawCommand(gameName, messageParts) {
+    const tellrawJson = JSON.stringify(messageParts);
+    return `tellraw ${gameName} ${tellrawJson}`;
+  }
+
+  function buildVerificationCodeTellraw(gameName, verificationCode, expireMinutes) {
+    const messageParts = [
+      {"text":"-----------------------------------------------------\n"},
+      {"text":"[服务器通知]:\n","color":"gray"},
+      {"text":`验证码有效期为${expireMinutes}分钟，\n`,"color":"#FFFF00"},
+      {"text":"请不要将您的验证码泄露给其他玩家，您正在绑定游戏名，如非本人操作请忽略此消息。\n","color":"red"},
+      {"text":"鼠标悬停于 ","color":"#FFFF00"},
+      {"text":"[验证码]","color":"green","bold":true,"hoverEvent":{"action":"show_text","value":verificationCode}},
+      {"text":" 查看验证码\n","color":"#FFFF00"},
+      {"text":"-----------------------------------------------------"}
+    ];
+    return buildTellrawCommand(gameName, messageParts);
+  }
+
+  function buildAlreadyBoundTellraw(gameName) {
+    const messageParts = [
+      {"text":"-----------------------------------------------------\n"},
+      {"text":"[服务器通知]:\n","color":"gray"},
+      {"text":`游戏名${gameName}已经是您的了，无需重复绑定\n`,"color":"#FFFF00"},
+      {"text":"-----------------------------------------------------"}
+    ];
+    return buildTellrawCommand(gameName, messageParts);
+  }
+
+  function buildTakenByOtherTellraw(gameName) {
+    const messageParts = [
+      {"text":"-----------------------------------------------------\n"},
+      {"text":"[服务器通知]:\n","color":"gray"},
+      {"text":`游戏名${gameName}已被绑定，无法重复绑定\n`,"color":"red"},
+      {"text":"-----------------------------------------------------"}
+    ];
+    return buildTellrawCommand(gameName, messageParts);
+  }
+
+  function buildSuccessTellraw(gameName, userName) {
+    const messageParts = [
+      {"text":"-----------------------------------------------------\n"},
+      {"text":"[服务器通知]:\n","color":"gray"},
+      {"text":`已将${gameName}绑定到${userName}\n`,"color":"#FFFF00"},
+      {"text":"-----------------------------------------------------"}
+    ];
+    return buildTellrawCommand(gameName, messageParts);
+  }
+
   async function updateGameName(req, res) {
     try {
       const { gameName } = req.body;
@@ -201,7 +250,7 @@ function createUserController() {
       const verificationCode = generateVerificationCode();
       const token = baseController.generateRandomString(32);
       
-      const rconCommand = `title ${gameName} title {"text":"${verificationCode}"}`;
+      const rconCommand = buildVerificationCodeTellraw(gameName, verificationCode, bindingExpireMinutes);
       const rconResult = await baseController.executeRCONCommand(rconCommand);
       
       if (!rconResult || !rconResult.success) {
@@ -285,7 +334,7 @@ function createUserController() {
       });
       
       if (currentUser && currentUser.gameName === gameName) {
-        const rconCommand = `title ${gameName} title {"text":"游戏名${gameName}已经是您的了，无需重复绑定"}`;
+        const rconCommand = buildAlreadyBoundTellraw(gameName);
         await baseController.executeRCONCommand(rconCommand);
         await baseController.prisma.NameBinding.delete({
           where: { id: binding.id }
@@ -300,7 +349,7 @@ function createUserController() {
       });
       
       if (existingUser && existingUser.id !== req.user.id) {
-        const rconCommand = `title ${gameName} title {"text":"游戏名${gameName}已被绑定，无法重复绑定"}`;
+        const rconCommand = buildTakenByOtherTellraw(gameName);
         await baseController.executeRCONCommand(rconCommand);
         await baseController.prisma.NameBinding.delete({
           where: { id: binding.id }
@@ -322,7 +371,7 @@ function createUserController() {
       });
       
       if (updatedUser) {
-        const rconCommand = `title ${gameName} title {"text":"已将${gameName}绑定到${updatedUser.name}"}`;
+        const rconCommand = buildSuccessTellraw(gameName, updatedUser.name);
         await baseController.executeRCONCommand(rconCommand);
       }
       
